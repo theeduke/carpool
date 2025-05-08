@@ -1,0 +1,156 @@
+.home-container {
+  max-width: 800px;
+  margin: 0 auto;
+  padding: 20px;
+  text-align: center;
+}
+
+.home-title {
+  font-size: 2.5em;
+  margin-bottom: 20px;
+}
+
+.home-paragraph {
+  font-size: 1.2em;
+  margin-bottom: 20px;
+}
+
+.button-group {
+  display: flex;
+  justify-content: center;
+  gap: 20px;
+  margin-bottom: 20px;
+}
+
+.home-button {
+  padding: 10px 20px;
+  font-size: 1em;
+  border: none;
+  border-radius: 5px;
+  cursor: pointer;
+  color: white;
+}
+
+.find-ride {
+  background-color: #28a745;
+}
+
+.find-ride:hover {
+  background-color: #218838;
+}
+
+.dashboard {
+  background-color: #007bff;
+}
+
+.dashboard:hover {
+  background-color: #0056b3;
+}
+
+.register-passenger {
+  background-color: #17a2b8;
+}
+
+.register-passenger:hover {
+  background-color: #138496;
+}
+
+.register-driver {
+  background-color: #ffc107;
+}
+
+.register-driver:hover {
+  background-color: #e0a800;
+}
+
+.why-choose {
+  margin-top: 40px;
+}
+
+.why-title {
+  font-size: 1.8em;
+  margin-bottom: 10px;
+}
+
+.why-list {
+  list-style: none;
+  padding: 0;
+}
+
+.why-list li {
+  font-size: 1.1em;
+  margin: 10px 0;
+}
+
+
+
+/* .home-container {
+    text-align: center;
+    padding: 20px;
+    min-height: 100vh;
+  }
+  
+  .home-title {
+    font-size: 2.5rem;
+    margin-bottom: 20px;
+  }
+  
+  .home-paragraph {
+    font-size: 1.2rem;
+    margin-bottom: 20px;
+  }
+  
+  .button-group {
+    margin-top: 20px;
+  }
+  
+  .home-button {
+    padding: 10px 20px;
+    margin: 0 10px;
+    font-size: 16px;
+    cursor: pointer;
+    border: none;
+    border-radius: 5px;
+    color: white;
+  }
+  
+  .find-ride {
+    background-color: #4CAF50;
+  }
+  
+  .dashboard {
+    background-color: #2196F3;
+  }
+  
+  .why-choose {
+    margin-top: 40px;
+  }
+  
+  .why-title {
+    font-size: 1.5rem;
+    margin-bottom: 10px;
+  }
+  
+  .why-list {
+    list-style: none;
+    padding: 0;
+    font-size: 1.1rem;
+  }
+  
+  .why-list li {
+    margin: 10px 0;
+  }
+  .driver-ride-card {
+    width: 100%;
+    min-height: 400px;
+    padding: 16px;
+    box-sizing: border-box;
+  }
+  
+  .driver-ride-card h3 {
+    margin-bottom: 16px;
+  }
+  
+  .driver-ride-card > div {
+    margin-bottom: 16px;
+  } */

@@ -11,40 +11,62 @@ https://docs.djangoproject.com/en/5.1/ref/settings/
 """
 
 from pathlib import Path
+from decouple import config
+from datetime import timedelta
+import os
+
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
+
 
 
 # Quick-start development settings - unsuitable for production
 # See https://docs.djangoproject.com/en/5.1/howto/deployment/checklist/
 
 # SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = 'django-insecure-_!zy5gru56q$blfjhqvb&^u7^ao)!w(e+@-e591!tbc&+8(0h7'
+SECRET_KEY = config("secret_key")
+
 
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
-ALLOWED_HOSTS = []
+ALLOWED_HOSTS = [
+    "127.0.0.1",    # Localhost
+    "localhost",     # Local development
+    # "your-backend-domain.com",  # Backend domain
+    # "your-frontend-domain.com", # Frontend domain
+]
 
 
 # Application definition
 
 INSTALLED_APPS = [
+    # "daphne",
+    'channels',
     'django.contrib.admin',
     'django.contrib.auth',
     'django.contrib.contenttypes',
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
-    'channels',
     'Taxi',
+    
+    
+    'allauth',
+    'allauth.account',
+    'allauth.socialaccount',
+    'allauth.socialaccount.providers.google',
+    
+    'rest_framework',
+    'rest_framework_simplejwt.token_blacklist',
+    'corsheaders',
 ]
+
+SITE_ID = 1
 
 AUTH_USER_MODEL = 'Taxi.CustomUser'
 
-# Channels setup
-ASGI_APPLICATION = "Taxi.asgi.application"
 
 # Redis for WebSocket message storage
 CHANNEL_LAYERS = {
@@ -52,16 +74,67 @@ CHANNEL_LAYERS = {
         "BACKEND": "channels.layers.InMemoryChannelLayer",  # Use Redis in production
     }
 }
+# CHANNEL_LAYERS = {
+#     'default': {
+#         'BACKEND': 'channels_redis.core.RedisChannelLayer',
+#         'CONFIG': {
+#             "hosts": [('127.0.0.1', 6379)],
+#         },
+#     },
+# }
 
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
+    'corsheaders.middleware.CorsMiddleware',
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
+    
+    #account middleware
+    "allauth.account.middleware.AccountMiddleware",
 ]
+
+
+#csrf trusted origins
+CSRF_TRUSTED_ORIGINS = [
+    # "https://mantis-exciting-evidently.ngrok-free.app",
+    "http://localhost:5173",
+    "http://127.0.0.1:5173",
+    "http://127.0.0.1:8000",  #WSGI server
+    "http://127.0.0.1:8001",  # ASGI server
+    # "https://pesapal.com",
+    # "https://www.pesapal.com",
+]
+# If you want to allow subdomains (*.pesapal.com)
+CORS_ALLOWED_ORIGIN_REGEXES = [
+    r"^https://.*\.pesapal\.com$",
+]
+
+CORS_ALLOWED_ORIGINS = [
+    # "https://mantis-exciting-evidently.ngrok-free.app",
+    "http://localhost:5173",  #  frontend URL
+    "http://127.0.0.1:5173",
+    # "https://pesapal.com",
+    # "https://www.pesapal.com",
+]
+
+CORS_ALLOW_METHODS = [
+    'GET',
+    'POST',
+    'PUT',
+    'PATCH',
+    'DELETE',
+    'OPTIONS'
+]
+
+# Allow credentials if needed
+CORS_ALLOW_CREDENTIALS = True
+
+# Channels setup
+ASGI_APPLICATION = "carpoolBackend.asgi.application"
 
 ROOT_URLCONF = 'carpoolBackend.urls'
 
@@ -95,6 +168,19 @@ DATABASES = {
 }
 
 
+# # for postgres
+# DATABASES = {
+#     'default': {
+#         'ENGINE': 'django.db.backends.postgresql',
+
+#         'NAME': config('dbname'),
+#         'USER': config('dbuser'),
+#         'PASSWORD':config('dbpassword'),
+#         'PORT': config('dbport'),
+#         'HOST': config('dbhost')
+#     }
+# }
+
 # Password validation
 # https://docs.djangoproject.com/en/5.1/ref/settings/#auth-password-validators
 
@@ -112,6 +198,24 @@ AUTH_PASSWORD_VALIDATORS = [
         'NAME': 'django.contrib.auth.password_validation.NumericPasswordValidator',
     },
 ]
+
+REST_FRAMEWORK = {
+    # Use Django's standard `django.contrib.auth` permissions,
+    # or allow read-only access for unauthenticated users.
+    'DEFAULT_PERMISSION_CLASSES': [
+        'rest_framework.permissions.DjangoModelPermissionsOrAnonReadOnly',
+        'rest_framework.permissions.IsAuthenticated',
+    ],
+    'DEFAULT_AUTHENTICATION_CLASSES': [
+        'rest_framework.authentication.BasicAuthentication',
+        'rest_framework.authentication.TokenAuthentication',
+        'rest_framework.authentication.SessionAuthentication',
+        'rest_framework_simplejwt.authentication.JWTAuthentication',
+    
+
+    ]
+}
+
 
 
 # Internationalization
@@ -135,3 +239,84 @@ STATIC_URL = 'static/'
 # https://docs.djangoproject.com/en/5.1/ref/settings/#default-auto-field
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
+
+
+#mpesa settings
+
+MPESA_CONSUMER_KEY = config("mpesa_Consumer_Key")
+MPESA_CONSUMER_SECRET = config("mpesa_Consumer_Secret")
+MPESA_SHORTCODE = config("MPESA_SHORTCODE")
+MPESA_INITIATOR = config("MPESA_INITIATOR")
+MPESA_SECURITY_CREDENTIAL = config("MPESA_SECURITY_CREDENTIAL")
+MPESA_STK_PUSH_URL = config("MPESA_STK_PUSH_URL")
+MPESA_B2C_URL = config("MPESA_B2C_URL")
+MPESA_CALLBACK_URL = config("MPESA_CALLBACK_URL")
+MPESA_B2C_TIMEOUT_URL = config("MPESA_B2C_TIMEOUT_URL")
+MPESA_B2C_RESULT_URL = config("MPESA_B2C_RESULT_URL")
+
+
+
+#backend url
+BACKEND_URL = config('BACKEND_URL', default="http://localhost:8000")
+FRONTEND_URL = config('FRONTEND_URL')
+
+#google settings
+GOOGLE_OAUTH2_CLIENT_ID = config('client_id')
+GOOGLE_OAUTH2_CLIENT_SECRET = config('client_secret')
+
+#googe maps
+GOOGLE_MAPS_API_KEY=config('GOOGLE_MAPS_API_KEY')
+
+
+
+#email settings
+EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
+EMAIL_HOST = "smtp.gmail.com"
+EMAIL_PORT = 587
+EMAIL_USE_TLS = True
+# EMAIL_HOST_FROM = config("EAccount")
+DEFAULT_FROM_EMAIL = config("EAccount")
+EMAIL_HOST_USER = config("EAccount")
+EMAIL_HOST_PASSWORD = config("EPass")
+
+
+
+# simple-jwt settings
+SIMPLE_JWT = {
+    'ACCESS_TOKEN_LIFETIME': timedelta(minutes=55),
+    'REFRESH_TOKEN_LIFETIME': timedelta(days=7),
+    'ROTATE_REFRESH_TOKENS': True,
+    'BLACKLIST_AFTER_ROTATION': True,
+    'UPDATE_LAST_LOGIN': False,
+
+    'ALGORITHM': 'HS256',
+    
+    'SIGNING_KEY': 'SECRET_KEY',
+
+    'VERIFYING_KEY': None,
+    'AUDIENCE': None,
+    'ISSUER': None,
+    'JWK_URL': None,
+    'LEEWAY': 0,
+
+    'AUTH_HEADER_TYPES': ('Bearer',),
+    'AUTH_HEADER_NAME': 'HTTP_AUTHORIZATION',
+    'USER_ID_FIELD': 'id',
+    'USER_ID_CLAIM': 'id',
+    # 'USER_ID_CLAIM': 'user_id',
+    'USER_AUTHENTICATION_RULE': 'rest_framework_simplejwt.authentication.default_user_authentication_rule',
+
+    'AUTH_TOKEN_CLASSES': ('rest_framework_simplejwt.tokens.AccessToken',),
+    'TOKEN_TYPE_CLAIM': 'token_type',
+    'TOKEN_USER_CLASS': 'rest_framework_simplejwt.models.TokenUser',
+
+    'JTI_CLAIM': 'jti',
+
+    'SLIDING_TOKEN_REFRESH_EXP_CLAIM': 'refresh_exp',
+    'SLIDING_TOKEN_LIFETIME': timedelta(minutes=5),
+    'SLIDING_TOKEN_REFRESH_LIFETIME': timedelta(days=1),
+    #"TOKEN_OBTAIN_SERIALIZER": "users.serializers.MyTokenObtainPairSerializer"
+}
+
+# FCM_SERVER_KEY=config("fcm_server_key")
+FIREBASE_CREDENTIALS=os.path.join(BASE_DIR, 'serviceAccountKey.json')

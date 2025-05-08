@@ -1,0 +1,68 @@
+.ride-requests-container {
+    max-width: 800px;
+    margin: 20px auto;
+    padding: 20px;
+    border: 1px solid #ddd;
+    border-radius: 8px;
+    background-color: #f9f9f9;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.ride-requests-container h2 {
+    text-align: center;
+    color: #333;
+}
+
+.ride-request-list {
+    list-style: none;
+    padding: 0;
+}
+
+.ride-request-item {
+    padding: 15px;
+    margin-bottom: 10px;
+    border-radius: 5px;
+    background: #fff;
+    border: 1px solid #ddd;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.ride-request-item p {
+    margin: 5px 0;
+    color: #555;
+}
+
+.ride-request-actions {
+    display: flex;
+    gap: 10px;
+}
+
+.accept-button {
+    background-color: #28a745;
+    color: white;
+    border: none;
+    padding: 8px 12px;
+    border-radius: 5px;
+    cursor: pointer;
+    transition: background 0.3s ease-in-out;
+}
+
+.accept-button:hover {
+    background-color: #218838;
+}
+
+.reject-button {
+    background-color: #dc3545;
+    color: white;
+    border: none;
+    padding: 8px 12px;
+    border-radius: 5px;
+    cursor: pointer;
+    transition: background 0.3s ease-in-out;
+}
+
+.reject-button:hover {
+    background-color: #c82333;
+}

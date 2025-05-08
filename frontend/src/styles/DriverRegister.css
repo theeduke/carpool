@@ -1,0 +1,125 @@
+.register-form {
+    max-width: 500px;
+    margin: 20px auto;
+    padding: 20px;
+    background-color: #fff;
+    border-radius: 8px;
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+  }
+  
+  .register-form h2 {
+    text-align: center;
+    font-size: 2em;
+    margin-bottom: 20px;
+    color: #333;
+  }
+  
+  .register-form .error {
+    color: #dc3545;
+    text-align: center;
+    margin-bottom: 15px;
+    font-size: 0.9em;
+  }
+  
+  .register-form form {
+    display: flex;
+    flex-direction: column;
+    gap: 15px;
+  }
+  
+  .register-form input[type="text"],
+  .register-form input[type="email"],
+  .register-form input[type="tel"],
+  .register-form input[type="password"],
+  .register-form input[type="number"],
+  .register-form select {
+    padding: 10px;
+    font-size: 1em;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+    width: 100%;
+    box-sizing: border-box;
+  }
+  
+  .register-form input[type="file"] {
+    padding: 10px 0;
+    font-size: 1em;
+  }
+  
+  .register-form .file-label {
+    font-size: 1em;
+    color: #333;
+    margin-bottom: 5px;
+  }
+  
+  .register-form select:disabled {
+    background-color: #f1f1f1;
+    cursor: not-allowed;
+  }
+  
+  .register-form .password-container {
+    position: relative;
+    display: flex;
+    align-items: center;
+  }
+  
+  .register-form .password-container input {
+    padding-right: 40px; /* Space for the eye icon */
+  }
+  
+  .register-form .password-toggle {
+    position: absolute;
+    right: 10px;
+    cursor: pointer;
+    color: #666;
+    font-size: 1.2em;
+  }
+  
+  .register-form .password-toggle:hover {
+    color: #333;
+  }
+  
+  .register-form button {
+    padding: 12px;
+    font-size: 1em;
+    background-color: #007bff;
+    color: white;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    transition: background-color 0.2s;
+  }
+  
+  .register-form button:hover {
+    background-color: #0056b3;
+  }
+  
+  .register-form button:disabled {
+    background-color: #6c757d;
+    cursor: not-allowed;
+  }
+  
+  @media (max-width: 600px) {
+    .register-form {
+      padding: 15px;
+      margin: 10px;
+    }
+  
+    .register-form h2 {
+      font-size: 1.5em;
+    }
+  
+    .register-form input,
+    .register-form select,
+    .register-form button {
+      font-size: 0.9em;
+    }
+  
+    .register-form .password-toggle {
+      font-size: 1em;
+    }
+  
+    .register-form .file-label {
+      font-size: 0.9em;
+    }
+  }

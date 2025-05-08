@@ -93,22 +93,126 @@ def verify_driving_license(request):
  #to send websocket messages
 from channels.layers import get_channel_layer
 from asgiref.sync import async_to_sync
-from .firebase import send_push_notification # for firebase cloud messaging
+from Taxi.firebase import send_push_notification # for firebase cloud messaging
 
-def send_notification(user_id, message):
+def send_notification(id, message, carpoolride_id=None):
     """Send a real-time WebSocket notification to a specific user."""
+    """
+    Send a real-time WebSocket notification to a specific user.
+    
+    Args:
+        id: The user ID.
+        message (str): The notification message.
+        carpoolride_id (str, optional): The ID of the ride associated with the notification.
+    """
     channel_layer = get_channel_layer()
-    group_name = f"user_{user_id}"
+    group_name = f"user_{id}"
 
     async_to_sync(channel_layer.group_send)(
         group_name,
         {
             "type": "send_notification",
             "message": message,
+            "carpoolride_id": carpoolride_id,
         },
     )
 
-def notify_user(user, message):
+def notify_user(user, message,  carpoolride_id=None):
     """Send a notification via WebSockets and Firebase."""
-    send_notification(user.id, message)  # WebSocket
-    send_push_notification(user, message)  # Firebase
+    """Send a notification to a user via WebSockets and Firebase.
+    
+    Args:
+        user: The CustomUser instance to notify.
+        message (str): The message content to send.
+        ride_id (str, optional): The ID of the ride associated with the notification.
+    """
+    print(f"this is the what the nofiy users gets {carpoolride_id}")
+    # send_notification(user.id, message) 
+    send_notification(user.id, message, carpoolride_id=carpoolride_id)  # WebSocket
+    # send_push_notification(user, message)  # Firebase
+    # Firebase push notification
+    if hasattr(user, 'fcm_token') and user.fcm_token:
+        send_push_notification(
+            token=user.fcm_token,
+            title="Ride Update",  # Fixed title for notifications
+            body=message         # Use message as the body
+        )
+    else:
+        print(f"No FCM token for user {user.id}")
+    
+    
+    
+        #mpesa
+import base64
+import requests
+from datetime import datetime
+from django.conf import settings
+
+def get_mpesa_access_token():
+    url = "https://sandbox.safaricom.co.ke/oauth/v1/generate?grant_type=client_credentials"
+    auth = base64.b64encode(f"{settings.MPESA_CONSUMER_KEY}:{settings.MPESA_CONSUMER_SECRET}".encode()).decode()
+    headers = {"Authorization": f"Basic {auth}"}
+    response = requests.get(url, headers=headers)
+    return response.json()["access_token"]
+
+def generate_stk_password():
+    timestamp = datetime.now().strftime("%Y%m%d%H%M%S")
+    data = f"{settings.MPESA_SHORTCODE}{settings.MPESA_PASSKEY}{timestamp}"
+    return base64.b64encode(data.encode()).decode()
+
+def generate_timestamp():
+    return datetime.now().strftime("%Y%m%d%H%M%S")
+
+
+######user email and tokens
+import jwt
+from django.core.mail import send_mail
+from django.conf import settings
+from datetime import datetime, timedelta
+from smtplib import SMTPException
+import logging
+logger = logging.getLogger(__name__)
+
+
+def create_token(user, extra_payload):
+    """Generate a JWT token with custom payload."""
+    payload = {
+        'id': str(user.id),
+        'email': user.email,
+        'timestamp': datetime.now().timestamp(),
+        **extra_payload,
+    }
+    return jwt.encode(payload, settings.SECRET_KEY, algorithm="HS256")
+
+def send_email(subject, message, recipient_email):
+    """Send an email to the recipient."""
+    send_mail(subject, message, settings.DEFAULT_FROM_EMAIL, [recipient_email])
+
+def send_verification_email(user):
+    try:
+        if user.is_active:
+            logger.warning(f"User {user.email} is already active. Verification email not sent.")
+            return False
+        
+        # JWT payload with expiration
+        payload = {
+            'id': str(user.id),
+            'email': user.email,
+            'verification': True,
+            'is_active': user.is_active,  # Include user activation status
+            'exp': (datetime.now() + timedelta(hours=24)).timestamp(),  # Token expires in 24 hours
+        }
+        token = jwt.encode(payload, settings.SECRET_KEY, algorithm="HS256")
+        # 'domain': current_site.domain,
+        # "http://{{ domain }}{% url 'activate' uidb64=uid token=token %}">
+        # Email details
+        verification_link = f"{settings.BACKEND_URL}/verify-email/?token={token}"
+        subject = "Verify your email"
+        message = f"Hi {user.first_name},\n\nClick the link to verify your email: {verification_link}"
+
+        # Send email
+        send_mail(subject, message, settings.DEFAULT_FROM_EMAIL, [user.email])
+        return True
+    except SMTPException as e:
+        logger.error(f"Failed to send email to {user.email}: {e}")
+        return False

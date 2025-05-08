@@ -14,16 +14,18 @@ from django.contrib.auth.models import AbstractBaseUser, BaseUserManager, Permis
 from django.db import models
 
 class CustomUserManager(BaseUserManager):
-    def create_user(self, phone_number, password=None, **extra_fields):
+    def create_user(self, phone_number, email, password=None, **extra_fields):
         if not phone_number:
             raise ValueError("The Phone Number field must be set")
+        if not email:
+            raise ValueError("Email field must be set")
         
-        user = self.model(phone_number=phone_number, **extra_fields)
+        user = self.model(phone_number=phone_number, email=email, **extra_fields)
         user.set_password(password)
         user.save(using=self._db)
         return user
     
-    def create_superuser(self, phone_number, password=None, **extra_fields):
+    def create_superuser(self, phone_number, email, password=None, **extra_fields):
         extra_fields.setdefault('is_staff', True)
         extra_fields.setdefault('is_superuser', True)
         
@@ -32,15 +34,17 @@ class CustomUserManager(BaseUserManager):
         if extra_fields.get('is_superuser') is not True:
             raise ValueError("Superuser must have is_superuser=True.")
         
-        return self.create_user(phone_number, password, **extra_fields)
+        return self.create_user(phone_number, email, password, **extra_fields)
 
 class CustomUser(AbstractBaseUser, PermissionsMixin):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     first_name = models.CharField(max_length=30, blank=True, null=True)
     last_name = models.CharField(max_length=30, blank=True, null=True)
+    email=models.EmailField(max_length=254, unique=True, null=False, blank=False)
     fcm_token = models.CharField(max_length=255, blank=True, null=True)  # Store Firebase token
-    phone_number = models.CharField(max_length=15, unique=True)
-    is_verified = models.BooleanField(default=False)  # KYC status
+    phone_number = models.CharField(max_length=15, unique=True, null=False, blank=False)
+    is_verified = models.BooleanField(default=False)  # KYC status especially for driver
+    is_email_verified = models.BooleanField(default=False)  # Track verification status
     profile_picture = models.ImageField(upload_to="profiles/", blank=True, null=True)
     rating = models.FloatField(default=5.0)  # Average rating
     national_id = models.CharField(max_length=10, unique=True, blank=True, null=True)  # Added for eCitizen check
@@ -53,6 +57,7 @@ class CustomUser(AbstractBaseUser, PermissionsMixin):
     wallet_balance = models.DecimalField(max_digits=10, decimal_places=2, default=0.00)
     is_active = models.BooleanField(default=True)
     cooldown_until = models.DateTimeField(null=True, blank=True)
+    is_available = models.BooleanField(default=False)
     
     is_staff = models.BooleanField(default=False)
     GENDER_CHOICES = [
@@ -65,7 +70,7 @@ class CustomUser(AbstractBaseUser, PermissionsMixin):
     objects = CustomUserManager()
     
     USERNAME_FIELD = 'phone_number'
-    REQUIRED_FIELDS = []
+    REQUIRED_FIELDS = ['email']
     
     def save_id_image(self, image_file, side):
         """Hashes the image and stores it securely."""
@@ -85,19 +90,45 @@ class CustomUser(AbstractBaseUser, PermissionsMixin):
         self.driving_license_hash = hashlib.sha256(license_content).hexdigest()
         self.save()
     
+    @property
+    def fullname(self):
+        return f"{self.first_name or ''} {self.last_name or ''}".strip()
+    
     def __str__(self):
         return f"{self.first_name} {self.last_name} ({self.phone_number})"
 
 # vehicle
+class VehicleMake(models.Model):
+    make_id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    name = models.CharField(max_length=50, unique=True)
+
+    def __str__(self):
+        return self.name
+
+class VehicleModel(models.Model):
+    model_id =models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    make = models.ForeignKey(VehicleMake, on_delete=models.CASCADE, related_name="models")
+    name = models.CharField(max_length=50)
+
+    class Meta:
+        unique_together = ("make", "name")
+
+    def __str__(self):
+        return f"{self.make.name} {self.name}"
 class Vehicle(models.Model):
-    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    vehicleid = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     driver = models.OneToOneField(CustomUser, on_delete=models.CASCADE, related_name="vehicle")
-    make = models.CharField(max_length=50)  # Toyota, Nissan, etc.
-    model = models.CharField(max_length=50)  # Corolla, Note, etc.
+    # make = models.CharField(max_length=50)  # Toyota, Nissan, etc.
+    # model = models.CharField(max_length=50)  # Corolla, Note, etc.
+    make = models.ForeignKey(VehicleMake, on_delete=models.SET_NULL, null=True)
+    model = models.ForeignKey(VehicleModel, on_delete=models.SET_NULL, null=True)
     plate_number = models.CharField(max_length=15, unique=True)
     capacity = models.IntegerField(default=4)
     year = models.IntegerField()
+    vehicle_photo = models.ImageField(upload_to="vehicle_photos/", null=True, blank=True)
+    color = models.CharField(max_length=20, blank=True)  # Add color field
     verified = models.BooleanField(default=False)  # Approved by admin
+    
 
 # ride
 # class Ride(models.Model):
@@ -118,10 +149,11 @@ class Vehicle(models.Model):
 import googlemaps
 from django.db import models
 from django.conf import settings
-from django.contrib.gis.db import models as gis_models  # GeoDjango for geolocation
+# from django.contrib.gis.db import models as gis_models  # GeoDjango for geolocation
 from django.contrib.auth import get_user_model
 from geopy.distance import geodesic
-gmaps = googlemaps.Client(key=settings.GOOGLE_MAPS_API_KEY)
+from django.db.models import JSONField
+# gmaps = googlemaps.Client(key=settings.GOOGLE_MAPS_API_KEY)
 
 CustomUser = get_user_model()
 
@@ -140,11 +172,15 @@ class DriverLocation(models.Model):
 
     #the ride itself
 class CarpoolRide(models.Model):
-    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
-    driver = models.ForeignKey(CustomUser, on_delete=models.CASCADE)
+    carpoolride_id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    driver = models.ForeignKey(CustomUser, on_delete=models.CASCADE, related_name="ride_driver")
     vehicle = models.ForeignKey(Vehicle, on_delete=models.SET_NULL, null=True, related_name="rides")
-    origin = models.CharField(max_length=255)
-    destination = models.CharField(max_length=255)
+    
+    origin = models.JSONField()  # expects dict with keys: label, lat, lng
+    destination = models.JSONField()
+
+    # origin = models.CharField(max_length=255)
+    # destination = models.CharField(max_length=255)
     departure_time = models.DateTimeField()
     available_seats = models.IntegerField(default=1)
     contribution_per_seat = models.DecimalField(max_digits=10, decimal_places=2)
@@ -152,19 +188,37 @@ class CarpoolRide(models.Model):
     is_completed=models.BooleanField(default=False)
     is_women_only = models.BooleanField(default=False)  # Restricts ride to female passengers only
     is_cancelled = models.BooleanField(default=False)
+    fare = models.DecimalField(max_digits=10, decimal_places=2, default=0.00)
+    last_updated = models.DateTimeField(auto_now=True)
+    status = models.CharField(
+        max_length=20,
+        choices=[("pending", "Pending"), ("in_progress", "In_progress"), ("completed", "Completed")],
+        default="pending"
+    )
 
     def save(self, *args, **kwargs):
         if self.is_women_only and self.driver.gender != "female":
             raise ValueError("Only female drivers can create Women-Only rides.")
         super().save(*args, **kwargs)
+    # def __str__(self):
+    #     return f"Ride by {self.driver.get_full_name()} from {self.origin.get('label')} ➜ {self.destination.get('label')}"
 
 
 # ride request  ////Stores requests from passengers to book a ride.
 class RideRequest(models.Model):
-    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    ridrequest_id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     ride = models.ForeignKey(CarpoolRide, on_delete=models.CASCADE, related_name="requests")
     passenger = models.ForeignKey(CustomUser, on_delete=models.CASCADE, related_name="ride_requests")
-    seats_requested = models.IntegerField()
+    # seats_requested = models.IntegerField()
+    seats_requested = models.PositiveIntegerField(default=1)# updated seat
+    # origin
+    #  pickup_location = models.CharField(max_length=255, blank=True, null=True)
+    # pickup_location = models.CharField(max_length=255)  # Unique per passenger
+    pickup_location = models.JSONField()  # Structured: label, lat, lng
+    dropoff_location = models.JSONField(blank=True, null=True)
+    # destination
+    # dropoff_location = models.CharField(max_length=255, blank=True, null=True)  # Optional
+    
     status = models.CharField(
         max_length=20,
         choices=[("pending", "Pending"), ("accepted", "Accepted"), ("declined", "Declined")],
@@ -176,10 +230,34 @@ class RideRequest(models.Model):
         default="unpaid"
     )
     created_at = models.DateTimeField(auto_now_add=True)
+    
+#get driver location:class UserLocation(models.Model):
+class UserLocation(models.Model):
+    user = models.ForeignKey(CustomUser, on_delete=models.CASCADE, related_name='locations')
+    ride = models.ForeignKey(CarpoolRide, on_delete=models.SET_NULL, null=True, blank=True, related_name='driver_location')
+    latitude = models.FloatField()
+    longitude = models.FloatField()
+    updated_at = models.DateTimeField(auto_now=True)
+    is_simulated = models.BooleanField(default=False)
+    carpoolride = models.ForeignKey(
+        CarpoolRide,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True
+    )
+
+    class Meta:
+        indexes = [
+            models.Index(fields=['user', 'ride']),
+            models.Index(fields=['updated_at']),
+        ]
+
+    def __str__(self):
+        return f"Driver location for {self.user.fullname} at ({self.latitude}, {self.longitude})"
 
 # payment  /// Handles Pesapal payments & wallet transactions.
 class Payment(models.Model):
-    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    paymentid = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     ride_request = models.OneToOneField(RideRequest, on_delete=models.CASCADE, related_name="payment")
     user = models.ForeignKey(CustomUser, on_delete=models.CASCADE, related_name="payments")
     transaction_id = models.CharField(max_length=50, unique=True)
@@ -190,17 +268,40 @@ class Payment(models.Model):
         default="pending"
     )
     created_at = models.DateTimeField(auto_now_add=True)
+    
+class WalletTopUpRequest(models.Model):
+    PAYMENT_METHODS = [
+        ("mpesa", "M-Pesa"),
+        ("card", "Card"),
+        ("bank_transfer", "Bank Transfer"),
+        ("crypto", "Crypto"),
+        ("mock", "Mock"),
+    ]
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    user = models.ForeignKey(CustomUser, on_delete=models.CASCADE, related_name="wallet_topups")
+    phone_number = models.CharField(max_length=20)  # Number initiating the payment
+    amount = models.DecimalField(max_digits=10, decimal_places=2)
+    transaction_id = models.CharField(max_length=50, unique=True)
+    payment_method = models.CharField(max_length=20, choices=PAYMENT_METHODS, default="mock")
+    status = models.CharField(max_length=20, choices=[
+        ("pending", "Pending"), ("completed", "Completed"), ("failed", "Failed")
+    ])
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self):
+        return f"{self.user.phone_number} → {self.phone_number} | {self.amount} [{self.status}]"
+
 
 from django.utils.translation import gettext_lazy as _
 class UserWallet(models.Model):
-    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    userWalletid = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     user = models.OneToOneField(CustomUser, on_delete=models.CASCADE, related_name="wallet")
     balance = models.DecimalField(max_digits=10, decimal_places=2, default=0.00)
     escrow_balance = models.DecimalField(max_digits=10, decimal_places=2, default=0.00)  # Holds payments before release
     created_at = models.DateTimeField(auto_now_add=True)
 
     def __str__(self):
-        return f"{self.user.username}'s Wallet - Balance: {self.balance}, Escrow: {self.escrow_balance}"
+        return f"{self.user.fullname}'s Wallet - Balance: {self.balance}, Escrow: {self.escrow_balance}"
 
     def deposit(self, amount):
         """Deposit funds into wallet."""
@@ -234,7 +335,7 @@ class UserWallet(models.Model):
         return False  # Not enough in escrow
 
 class WalletTransaction(models.Model):
-    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    walletTransactionid = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     TRANSACTION_TYPES = [
         ("deposit", _("Deposit")),
         ("withdrawal", _("Withdrawal")),
@@ -252,6 +353,12 @@ class WalletTransaction(models.Model):
 
     user = models.ForeignKey(CustomUser, on_delete=models.CASCADE, related_name="transactions")
     recipient = models.ForeignKey(CustomUser, on_delete=models.SET_NULL, null=True, blank=True, related_name="received_transactions")  # For transfers
+    
+    sender_name = models.CharField(max_length=100, blank=True)  # Store sender's full name
+    sender_phone = models.CharField(max_length=15, blank=True)  # Store sender's phone number
+    recipient_name = models.CharField(max_length=100, blank=True, null=True)  # Store recipient's full name
+    recipient_phone = models.CharField(max_length=15, blank=True, null=True)  # Store recipient's phone number
+    
     amount = models.DecimalField(max_digits=10, decimal_places=2)
     transaction_type = models.CharField(max_length=20, choices=TRANSACTION_TYPES)
     status = models.CharField(max_length=10, choices=STATUS_CHOICES, default="pending")
@@ -259,7 +366,7 @@ class WalletTransaction(models.Model):
     reference = models.CharField(max_length=100, unique=True)  # Unique transaction ID
 
     def __str__(self):
-        return f"{self.transaction_type} - {self.amount} by {self.user.first_name} ({self.status})"
+        return f"{self.transaction_type} - {self.amount} by {self.sender_name} ({self.status})"
 
             #to handle dispute especially during cancellation
 from django.db import models
@@ -273,7 +380,7 @@ class Dispute(models.Model):
         ("rejected", "Rejected"),
     ]
 
-    user = models.ForeignKey(User, on_delete=models.CASCADE)
+    user = models.ForeignKey(CustomUser, on_delete=models.CASCADE)
     ride = models.ForeignKey("CarpoolRide", on_delete=models.SET_NULL, null=True, blank=True)
     transaction = models.ForeignKey("WalletTransaction", on_delete=models.SET_NULL, null=True, blank=True)
     reason = models.TextField()
