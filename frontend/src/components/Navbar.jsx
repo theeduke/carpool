@@ -1,6 +1,8 @@
 import { Link } from "react-router-dom";
 import { useContext } from "react";
 import { AuthContext } from "../context/AuthContext";
+import "../styles/Navbar.css";
+// import LogoImage from "../assets/images/LogoImage.png";
 
 const Navbar = () => {
   const { user, logout } = useContext(AuthContext);
@@ -8,7 +10,10 @@ const Navbar = () => {
   return (
     <nav className="nav">
       <div className="nav-container">
-        <Link to="/" className="nav-brand">Carpool</Link>
+        {/* <div className="nav-image">
+        <img src={LogoImage} alt="Duke ride logo image" />
+        </div> */}
+        <Link to="/" className="nav-brand">Duke Rides</Link>
         <div className="nav-links">
           <Link to="/" className="nav-link">Home</Link>
           {user ? (
@@ -21,7 +26,7 @@ const Navbar = () => {
                   <Link to="/dashboard" className="nav-link">Dashboard</Link>
                 </>
               )}
-              <Link to="/ride-history" className="nav-link">Ride History</Link>
+              <Link to="/profile" className="nav-link">User Profile</Link>
               <button onClick={logout} className="nav-button">Logout</button>
             </>
           ) : (

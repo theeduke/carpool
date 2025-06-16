@@ -1,0 +1,112 @@
+/* Search Results Container */
+.search-results {
+  font-family: 'Arial', sans-serif;
+  color: #333;
+  padding: 20px;
+  background-color: #f0f4f8; /* Matches driver-dashboard background */
+  min-height: 100vh;
+}
+
+/* Search Form */
+.search-form {
+  max-width: 500px;
+  margin: 20px auto;
+  padding: 15px;
+  background-color: white;
+  border-radius: 10px;
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+  background: linear-gradient(135deg, #e0f7fa 0%, #b2ebf2 100%); /* Matches driver-form gradient */
+}
+
+/* Search Form Title */
+.search-title {
+  font-size: 1.8em;
+  color: #2c3e50;
+  margin: 20px 0 15px;
+  text-align: center;
+}
+
+/* Search Form Inputs */
+.search-input, .search-select {
+  width: 100%;
+  padding: 10px;
+  margin: 10px 0;
+  border: 1px solid #ccc;
+  border-radius: 5px;
+  font-size: 1em;
+  box-sizing: border-box; /* Ensures padding doesn't affect width */
+}
+
+/* Search Form Button */
+.search-button {
+  padding: 10px 20px;
+  font-size: 1em;
+  background-color: #2ecc71;
+  color: white;
+  border: none;
+  border-radius: 5px;
+  cursor: pointer;
+  transition: background-color 0.3s;
+}
+
+.search-button:hover {
+  background-color: #27ae60;
+}
+
+.search-button:disabled {
+  background-color: #cccccc;
+  cursor: not-allowed;
+}
+
+/* Error Message */
+.search-error {
+  max-width: 500px;
+  margin: 20px auto;
+  padding: 15px;
+  background-color: white;
+  border-radius: 10px;
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+  background: linear-gradient(135deg, #e0f7fa 0%, #b2ebf2 100%);
+  text-align: center;
+  color: #cc0000; /* Matches conditional-message warning color */
+}
+
+.search-error p {
+  font-size: 1.1em;
+  margin: 10px 0;
+}
+
+/* Loading Message */
+.search-loading {
+  max-width: 500px;
+  margin: 20px auto;
+  padding: 15px;
+  background-color: white;
+  border-radius: 10px;
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+  background: linear-gradient(135deg, #e0f7fa 0%, #b2ebf2 100%);
+  text-align: center;
+  color: #333;
+}
+
+.search-loading p {
+  font-size: 1.1em;
+  margin: 10px 0;
+}
+
+/* Responsive Design */
+@media (max-width: 600px) {
+  .search-form, .search-error, .search-loading {
+    margin: 10px;
+    padding: 10px;
+  }
+
+  .search-title {
+    font-size: 1.5em;
+  }
+
+  .search-input, .search-select, .search-button {
+    width: 100%;
+    padding: 8px;
+  }
+}

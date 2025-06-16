@@ -1,156 +1,434 @@
-.home-container {
-  max-width: 800px;
-  margin: 0 auto;
-  padding: 20px;
-  text-align: center;
+/* General Styles */
+.home-wrapper {
+  font-family: 'Arial', sans-serif;
+  color: #333;
 }
 
-.home-title {
-  font-size: 2.5em;
-  margin-bottom: 20px;
-}
-
-.home-paragraph {
-  font-size: 1.2em;
-  margin-bottom: 20px;
-}
-
-.button-group {
+/* Hero Section (Shared for Drivers and Passengers) */
+.hero {
   display: flex;
-  justify-content: center;
-  gap: 20px;
+  align-items: center;
+  justify-content: space-between;
+  padding: 50px;
+  background: linear-gradient(135deg, #e0f7fa 0%, #b2ebf2 100%);
+  min-height: 500px;
+}
+
+.hero-content {
+  max-width: 50%;
+}
+
+.hero-content h1 {
+  font-size: 3em;
+  color: #2c3e50;
   margin-bottom: 20px;
 }
 
-.home-button {
-  padding: 10px 20px;
-  font-size: 1em;
+.hero-content p {
+  font-size: 1.2em;
+  color: #555;
+  margin-bottom: 30px;
+}
+
+.hero-buttons {
+  display: flex;
+  gap: 20px;
+  flex-wrap: wrap; /* Allow buttons to wrap on smaller screens */
+}
+
+.cta-btn {
+  padding: 15px 30px;
+  font-size: 1.2em;
   border: none;
   border-radius: 5px;
   cursor: pointer;
+  transition: background-color 0.3s;
+}
+
+.cta-btn.primary {
+  background-color: #2ecc71;
   color: white;
 }
 
-.find-ride {
-  background-color: #28a745;
+.cta-btn.primary:hover {
+  background-color: #27ae60;
 }
 
-.find-ride:hover {
-  background-color: #218838;
+.cta-btn.secondary {
+  background-color: #3498db;
+  color: white;
 }
 
-.dashboard {
-  background-color: #007bff;
+.cta-btn.secondary:hover {
+  background-color: #2980b9;
 }
 
-.dashboard:hover {
-  background-color: #0056b3;
+.cta-btn.tertiary {
+  background-color: #f39c12;
+  color: white;
 }
 
-.register-passenger {
-  background-color: #17a2b8;
+.cta-btn.tertiary:hover {
+  background-color: #e67e22;
 }
 
-.register-passenger:hover {
-  background-color: #138496;
+.hero-image img {
+  max-width: 400px;
+  height: auto;
 }
 
-.register-driver {
-  background-color: #ffc107;
+/* Features Section (Shared for Drivers and Passengers) */
+.features {
+  padding: 50px;
+  text-align: center;
+  background-color: #fff;
 }
 
-.register-driver:hover {
-  background-color: #e0a800;
+.features h2 {
+  font-size: 2.5em;
+  margin-bottom: 40px;
+  color: #2c3e50;
 }
 
-.why-choose {
-  margin-top: 40px;
+.feature-list {
+  display: flex;
+  justify-content: space-around;
+  gap: 20px;
 }
 
-.why-title {
-  font-size: 1.8em;
+.feature-item {
+  max-width: 300px;
+  text-align: center;
+}
+
+.feature-icon {
+  width: 50px;
+  height: 50px;
+  margin-bottom: 15px;
+}
+
+.feature-item h3 {
+  font-size: 1.5em;
   margin-bottom: 10px;
+  color: #2c3e50;
 }
 
-.why-list {
-  list-style: none;
-  padding: 0;
+.feature-item p {
+  font-size: 1em;
+  color: #666;
 }
 
-.why-list li {
-  font-size: 1.1em;
-  margin: 10px 0;
+/* Testimonials Section (Shared for Drivers and Passengers) */
+.testimonials {
+  padding: 50px;
+  background-color: #f9f9f9;
+  text-align: center;
 }
 
+.testimonials h2 {
+  font-size: 2.5em;
+  margin-bottom: 40px;
+  color: #2c3e50;
+}
 
+.testimonial-list {
+  display: flex;
+  justify-content: center;
+  gap: 30px;
+}
 
-/* .home-container {
+.testimonial-item {
+  background-color: white;
+  padding: 20px;
+  border-radius: 8px;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+  max-width: 300px;
+}
+
+.testimonial-item p {
+  font-size: 1em;
+  color: #555;
+  margin-bottom: 15px;
+}
+
+.testimonial-item h4 {
+  font-size: 1.2em;
+  color: #2c3e50;
+}
+
+/* Footer */
+.footer {
+  text-align: center;
+  padding: 20px;
+  background-color: #2c3e50;
+  color: white;
+}
+
+.footer p {
+  margin: 0;
+}
+
+.report-select {
+  padding: 8px;
+  font-size: 16px;
+  border-radius: 4px;
+  border: 1px solid #ddd;
+  background-color: #f5a1a1;
+  cursor: pointer;
+  margin-right: 10px;
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+  .hero {
+    flex-direction: column;
+    padding: 30px;
     text-align: center;
-    padding: 20px;
-    min-height: 100vh;
   }
-  
-  .home-title {
-    font-size: 2.5rem;
-    margin-bottom: 20px;
+
+  .hero-content {
+    max-width: 100%;
+    margin-bottom: 30px;
   }
-  
-  .home-paragraph {
-    font-size: 1.2rem;
-    margin-bottom: 20px;
+
+  .hero-content h1 {
+    font-size: 2em;
   }
-  
-  .button-group {
-    margin-top: 20px;
+
+  .hero-image img {
+    max-width: 300px;
   }
-  
-  .home-button {
-    padding: 10px 20px;
-    margin: 0 10px;
-    font-size: 16px;
-    cursor: pointer;
-    border: none;
-    border-radius: 5px;
-    color: white;
+
+  .hero-buttons {
+    flex-direction: column;
+    align-items: center;
   }
-  
-  .find-ride {
-    background-color: #4CAF50;
-  }
-  
-  .dashboard {
-    background-color: #2196F3;
-  }
-  
-  .why-choose {
-    margin-top: 40px;
-  }
-  
-  .why-title {
-    font-size: 1.5rem;
+
+  .cta-btn {
+    width: 100%;
+    max-width: 300px;
     margin-bottom: 10px;
   }
-  
-  .why-list {
-    list-style: none;
-    padding: 0;
-    font-size: 1.1rem;
+
+  .feature-list {
+    flex-direction: column;
+    align-items: center;
   }
-  
-  .why-list li {
-    margin: 10px 0;
+
+  .feature-item {
+    margin-bottom: 30px;
   }
-  .driver-ride-card {
-    width: 100%;
-    min-height: 400px;
-    padding: 16px;
-    box-sizing: border-box;
+
+  .testimonial-list {
+    flex-direction: column;
+    align-items: center;
   }
-  
-  .driver-ride-card h3 {
-    margin-bottom: 16px;
+
+  .testimonial-item {
+    margin-bottom: 20px;
   }
-  
-  .driver-ride-card > div {
-    margin-bottom: 16px;
-  } */
+}
+
+
+
+
+
+/* General Styles
+.home-wrapper {
+  font-family: 'Arial', sans-serif;
+  color: #333;
+}
+
+/* Hero Section (Shared for Drivers and Passengers) 
+.hero {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 50px;
+  background: linear-gradient(135deg, #e0f7fa 0%, #b2ebf2 100%);
+  min-height: 500px;
+}
+
+.hero-content {
+  max-width: 50%;
+}
+
+.hero-content h1 {
+  font-size: 3em;
+  color: #2c3e50;
+  margin-bottom: 20px;
+}
+
+.hero-content p {
+  font-size: 1.2em;
+  color: #555;
+  margin-bottom: 30px;
+}
+
+.hero-buttons {
+  display: flex;
+  gap: 20px;
+}
+
+.cta-btn {
+  padding: 15px 30px;
+  font-size: 1.2em;
+  border: none;
+  border-radius: 5px;
+  cursor: pointer;
+  transition: background-color 0.3s;
+}
+
+.cta-btn.primary {
+  background-color: #2ecc71;
+  color: white;
+}
+
+.cta-btn.primary:hover {
+  background-color: #27ae60;
+}
+
+.cta-btn.secondary {
+  background-color: #3498db;
+  color: white;
+}
+
+.cta-btn.secondary:hover {
+  background-color: #2980b9;
+}
+
+.hero-image img {
+  max-width: 400px;
+  height: auto;
+}
+
+/* Features Section (Shared for Drivers and Passengers) 
+.features {
+  padding: 50px;
+  text-align: center;
+  background-color: #fff;
+}
+
+.features h2 {
+  font-size: 2.5em;
+  margin-bottom: 40px;
+  color: #2c3e50;
+}
+
+.feature-list {
+  display: flex;
+  justify-content: space-around;
+  gap: 20px;
+}
+
+.feature-item {
+  max-width: 300px;
+  text-align: center;
+}
+
+.feature-icon {
+  width: 50px;
+  height: 50px;
+  margin-bottom: 15px;
+}
+
+.feature-item h3 {
+  font-size: 1.5em;
+  margin-bottom: 10px;
+  color: #2c3e50;
+}
+
+.feature-item p {
+  font-size: 1em;
+  color: #666;
+}
+
+/* Testimonials Section (Shared for Drivers and Passengers) 
+.testimonials {
+  padding: 50px;
+  background-color: #f9f9f9;
+  text-align: center;
+}
+
+.testimonials h2 {
+  font-size: 2.5em;
+  margin-bottom: 40px;
+  color: #2c3e50;
+}
+
+.testimonial-list {
+  display: flex;
+  justify-content: center;
+  gap: 30px;
+}
+
+.testimonial-item {
+  background-color: white;
+  padding: 20px;
+  border-radius: 8px;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+  max-width: 300px;
+}
+
+.testimonial-item p {
+  font-size: 1em;
+  color: #555;
+  margin-bottom: 15px;
+}
+
+.testimonial-item h4 {
+  font-size: 1.2em;
+  color: #2c3e50;
+}
+
+/* Footer 
+.footer {
+  text-align: center;
+  padding: 20px;
+  background-color: #2c3e50;
+  color: white;
+}
+
+.footer p {
+  margin: 0;
+}
+
+/* Responsive Design 
+@media (max-width: 768px) {
+  .hero {
+    flex-direction: column;
+    padding: 30px;
+    text-align: center;
+  }
+
+  .hero-content {
+    max-width: 100%;
+    margin-bottom: 30px;
+  }
+
+  .hero-content h1 {
+    font-size: 2em;
+  }
+
+  .hero-image img {
+    max-width: 300px;
+  }
+
+  .feature-list {
+    flex-direction: column;
+    align-items: center;
+  }
+
+  .feature-item {
+    margin-bottom: 30px;
+  }
+
+  .testimonial-list {
+    flex-direction: column;
+    align-items: center;
+  }
+
+  .testimonial-item {
+    margin-bottom: 20px;
+  }
+} */

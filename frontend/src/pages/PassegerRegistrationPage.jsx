@@ -1,11 +1,11 @@
-import PasswordResetRequest from "../components/PasswordResetRequest";
+import PassengerRegistration from "../components/PassengerRegistration";
 
-function PasswordResetRequestPage() {
+function PassengerRegistrationPage() {
   return (
     <div>
-      <PasswordResetRequest />
+      <PassengerRegistration />
     </div>
   );
 }
 
-export default PasswordResetRequestPage;
+export default PassengerRegistrationPage;

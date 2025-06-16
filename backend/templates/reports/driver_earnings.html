@@ -1,0 +1,131 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Driver Earnings Report</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; background-color: #f4f4f4; color: #333; }
+        .container { max-width: 900px; margin: 0 auto; background-color: #fff; padding: 20px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1); }
+        .ride-break {margin-top: 40px; padding-top: 20px;border-top: 2px dashed #ccc;
+}
+        h1 { text-align: center; color: #4CAF50; }
+        table { width: 100%; border-collapse: collapse; margin-top: 20px; }
+        th, td { padding: 12px; text-align: left; border: 1px solid #ddd; }
+        th { background-color: #4CAF50; color: #fff; }
+        tr:nth-child(even) { background-color: #f2f2f2; }
+        .footer { text-align: center; margin-top: 20px; font-size: 12px; color: #777; }
+        @media print { body { background-color: #fff; } .container { box-shadow: none; } }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Driver Earnings Report for {{ user.fullname }}</h1>
+        <p>Generated on: {{ report_generated_at|date:"F d, Y H:i" }}</p>
+        {% if filter_year %}
+        <p class="filter-info">Filtered by: 
+            {% if filter_month %}
+                {% if filter_month == "1" %}January
+                {% elif filter_month == "2" %}February
+                {% elif filter_month == "3" %}March
+                {% elif filter_month == "4" %}April
+                {% elif filter_month == "5" %}May
+                {% elif filter_month == "6" %}June
+                {% elif filter_month == "7" %}July
+                {% elif filter_month == "8" %}August
+                {% elif filter_month == "9" %}September
+                {% elif filter_month == "10" %}October
+                {% elif filter_month == "11" %}November
+                {% elif filter_month == "12" %}December
+                {% endif %} {{ filter_year }}
+            {% else %}
+                {{ filter_year }}
+            {% endif %}
+        </p>
+        {% endif %}
+        {% if error_message %}
+        <p class="error-message">{{ error_message }}</p>
+        {% endif %}
+        {% if earnings %}
+        <table>
+    <thead>
+        <tr>
+            {% comment %} <th>Ride ID</th> {% endcomment %}
+            <th>Earnings</th>
+            <th>Passenger Count</th>
+            <th>Departure Time</th>
+        </tr>
+    </thead>
+    <tbody class="ride-break">
+        {% for earning in earnings %}
+
+        <tr>
+            {% comment %} <td>{{ earning.carpoolride_id }}</td> {% endcomment %}
+            <td>KES {{ earning.total_amount_paid }}</td>
+            <td>{{ earning.passenger_count }}</td>
+            <td>{{ earning.departure_time|date:"F d, Y H:i" }}</td>
+        </tr>
+        <tr>
+            <td colspan="4">
+                <strong>Passenger Breakdown:</strong>
+                {% if earning.passenger_breakdown %}
+                <table style="width: 100%; border: 1px solid #ccc; margin-top: 5px;">
+                    <thead>
+                        <tr>
+                            <th>Name</th>
+                            <th>Phone</th>
+                            <th>Seats Booked</th>
+                            <th>Amount Paid</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for passenger in earning.passenger_breakdown %}
+                        <tr>
+                            <td>{{ passenger.name }}</td>
+                            <td>{{ passenger.phone }}</td>
+                            <td>{{ passenger.seats_booked }}</td>
+                            <td>KES {{ passenger.amount_paid }}</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+                {% else %}
+                <p>No passenger joined this ride.</p>
+                {% endif %}
+            </td>
+        </tr>
+        {% endfor %}
+    </tbody>
+</table>
+        {% comment %} <table>
+            <thead>
+                <tr>
+                    <th>Ride ID</th>
+                    <th>Earnings</th>
+                    <th>Passenger Count</th>
+                    <th>Departure Time</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for earning in earnings %}
+                <tr>
+                    <td>{{ earning.carpoolride_id }}</td>
+                    <td>KES {{ earning.total_amount_paid }}</td>
+                    <td>{{ earning.passenger_count }}</td>
+                    <td>{{ earning.departure_time|date:"F d, Y H:i" }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table> {% endcomment %}
+        <p>Total Rides: {{ earnings|length }}</p>
+        {% else %}
+        {% if not error_message %}
+        <p class="error-message">No earning data available.</p>
+        {% endif %}
+        {% endif %}
+        <div class="footer">
+            <p>© {{ year }} Duke Rides. All rights reserved.</p>
+        </div>
+    </div>
+</body>
+</html>

@@ -1,6 +1,7 @@
 import { useState } from 'react';
-import { authService } from '../services/api';
+import { walletService } from '../services/api';
 import '../styles/WalletTopUp.css';
+import { useNavigate, useLocation } from 'react-router-dom';
 
 function WalletTopUp() {
   const [amount, setAmount] = useState('');
@@ -9,6 +10,8 @@ function WalletTopUp() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [success, setSuccess] = useState(null);
+  const navigate = useNavigate();
+  const location = useLocation();
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -27,10 +30,21 @@ function WalletTopUp() {
         payload.phone_number = phoneNumber;
       }
 
-      const response = await authService.topUpWallet(payload);
+      const response = await walletService.topUpWallet(payload);
       setSuccess(response.message || 'Wallet topped up successfully!');
+      // Clear the form
       setAmount('');
       setPhoneNumber('');
+      // Anticipate redirection timeout
+      setTimeout(() => {
+        // Check navigation state to determine redirect
+        const from = location.state?.from;
+          if (from === 'ride' && location.state?.rideId) {
+            navigate(`/search?rideId=${location.state.rideId}`); // Redirect to RideSearch with rideId
+          } else {
+            navigate('/profile'); // Default to profile
+          }
+          }, 1400);
     } catch (err) {
       setError(err.response?.data?.error || 'Failed to top up wallet. Please try again.');
     } finally {
@@ -71,10 +85,10 @@ function WalletTopUp() {
               onChange={(e) => setPaymentMethod(e.target.value)}
             >
               <option value="card">Debit/Credit Card</option>
-              <option value="bank_transfer">Bank Transfer</option>
-              <option value="crypto">Crypto</option>
+              {/* <option value="bank_transfer">Bank Transfer</option> */}
+              {/* <option value="crypto">Crypto</option> */}
               <option value="mpesa">M-Pesa</option>
-              <option value="mock">Mock (Test Only)</option>
+              {/* <option value="mock">Mock (Test Only)</option> */}
             </select>
           </div>
 

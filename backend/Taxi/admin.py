@@ -1,5 +1,5 @@
 from django.contrib import admin
-from .models import CustomUser, NTSAVerificationLog
+from .models import CustomUser
 
 # Register your models here.
 @admin.action(description="Reset cooldown for selected users")

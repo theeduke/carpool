@@ -1,10 +1,201 @@
+.registration-wrapper {
+  display: flex;
+  justify-content: center; /* Horizontal centering */
+  align-items: flex-start; /* Align to the top instead of center to give more breathing room */
+  min-height: 100vh; /* Full screen height */
+  background-color: #f0f4f8; /* Matches the driver dashboard background */
+  padding: 20px 0; /* Add some vertical padding to prevent content from touching the top */
+}
+
 .register-form {
-    max-width: 500px;
+  width: 90%; /* Use most of the screen width on smaller screens */
+  max-width: 900px; /* Increase max-width for larger screens (up from 700px) */
+  margin: 20px auto;
+  padding: 30px; /* Increase padding for more internal spacing */
+  background-color: #fff;
+  border-radius: 10px; /* Slightly larger radius for a softer look */
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1); /* Slightly stronger shadow for depth */
+  background: linear-gradient(135deg, #e0f7fa 0%, #b2ebf2 100%); /* Consistent with driver dashboard */
+}
+
+/* Add section styling for grouping related fields */
+.form-section {
+  margin-bottom: 30px; /* Space between sections */
+  padding: 20px; /* Internal padding for sections */
+  background-color: rgba(255, 255, 255, 0.8); /* Slight overlay to distinguish sections */
+  border-radius: 8px; /* Rounded corners for sections */
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.05); /* Subtle shadow for sections */
+}
+
+.form-section h3 {
+  font-size: 1.5em;
+  color: #2c3e50; /* Matches driver dashboard headings */
+  margin-bottom: 15px;
+  border-bottom: 1px solid #e0e0e0; /* Subtle separator */
+  padding-bottom: 5px;
+}
+
+.register-form h2 {
+  text-align: center;
+  font-size: 2.2em; /* Slightly larger for better hierarchy */
+  margin-bottom: 30px; /* More space below the title */
+  color: #2c3e50; /* Matches driver dashboard */
+}
+
+.register-form .error {
+  color: #dc3545;
+  text-align: center;
+  margin-bottom: 20px;
+  font-size: 1em; /* Slightly larger for visibility */
+  background-color: #ffecec; /* Background to match conditional-message warning */
+  padding: 10px;
+  border-radius: 5px;
+}
+
+.register-form form {
+  display: flex;
+  flex-direction: column;
+  gap: 20px; /* Increase gap for better spacing */
+}
+
+.register-form input[type="text"],
+.register-form input[type="email"],
+.register-form input[type="tel"],
+.register-form input[type="password"],
+.register-form input[type="number"],
+.register-form select {
+  padding: 12px; /* Slightly more padding for comfort */
+  font-size: 1em;
+  border: 1px solid #ccc;
+  border-radius: 5px; /* Slightly larger radius */
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.register-form input[type="file"] {
+  padding: 10px 0;
+  font-size: 1em;
+}
+
+.register-form .file-label {
+  font-size: 1em;
+  color: #333;
+  margin-bottom: 5px;
+  display: block; /* Ensure labels are on their own line */
+}
+
+.register-form select:disabled {
+  background-color: #f1f1f1;
+  cursor: not-allowed;
+}
+
+.register-form .password-container {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.register-form .password-container input {
+  padding-right: 40px; /* Space for the eye icon */
+}
+
+.register-form .password-toggle {
+  position: absolute;
+  right: 10px;
+  cursor: pointer;
+  color: #666;
+  font-size: 1.2em;
+}
+
+.register-form .password-toggle:hover {
+  color: #333;
+}
+
+.register-form button {
+  padding: 12px;
+  font-size: 1em;
+  background-color: #2ecc71; /* Match driver dashboard button color */
+  color: white;
+  border: none;
+  border-radius: 5px;
+  cursor: pointer;
+  transition: background-color 0.2s;
+}
+
+.register-form button:hover {
+  background-color: #27ae60; /* Match driver dashboard hover color */
+}
+
+.register-form button:disabled {
+  background-color: #6c757d;
+  cursor: not-allowed;
+}
+
+/* Responsive adjustments */
+@media (max-width: 900px) {
+  .register-form {
+    width: 95%; /* Use more of the screen on medium screens */
+    padding: 20px;
+  }
+
+  .form-section {
+    padding: 15px;
+  }
+}
+
+@media (max-width: 600px) {
+  .register-form {
+    width: 100%; /* Full width on small screens */
+    padding: 15px;
+    margin: 10px;
+  }
+
+  .register-form h2 {
+    font-size: 1.8em;
+  }
+
+  .form-section h3 {
+    font-size: 1.3em;
+  }
+
+  .register-form input,
+  .register-form select,
+  .register-form button {
+    font-size: 0.9em;
+    padding: 10px;
+  }
+
+  .register-form .password-toggle {
+    font-size: 1em;
+  }
+
+  .register-form .file-label {
+    font-size: 0.9em;
+  }
+
+  .form-section {
+    padding: 10px;
+  }
+}
+
+
+
+
+/* .registration-wrapper {
+    display: flex;
+    justify-content: center;  /* horizontal 
+    align-items: center;      /* vertical 
+    min-height: 100vh;        /* full screen height 
+    background-color: #f9f9f9; /* optional background 
+  }
+.register-form {
+    max-width: 700px;
     margin: 20px auto;
     padding: 20px;
     background-color: #fff;
     border-radius: 8px;
     box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+    background: linear-gradient(135deg, #e0f7fa 0%, #aae5fb 100%);
   }
   
   .register-form h2 {
@@ -64,7 +255,7 @@
   }
   
   .register-form .password-container input {
-    padding-right: 40px; /* Space for the eye icon */
+    padding-right: 40px; /* Space for the eye icon 
   }
   
   .register-form .password-toggle {
@@ -122,4 +313,4 @@
     .register-form .file-label {
       font-size: 0.9em;
     }
-  }
+  } */

@@ -1,0 +1,200 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Ride History Report</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+            background-color: #f4f4f4;
+            color: #333;
+        }
+        .container {
+            max-width: 900px;
+            margin: 0 auto;
+            background-color: #fff;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        }
+        h1 {
+            text-align: center;
+            color: #4CAF50;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 20px;
+        }
+        th, td {
+            padding: 12px;
+            text-align: left;
+            border: 1px solid #ddd;
+        }
+        th {
+            background-color: #4CAF50;
+            color: #fff;
+        }
+        tr:nth-child(even) {
+            background-color: #f2f2f2;
+        }
+        .copy-btn {
+            background-color: #2196F3;
+            color: white;
+            border: none;
+            padding: 4px 8px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 12px;
+        }
+        .copy-btn:hover {
+            background-color: #1976D2;
+        }
+        .copy-btn.copied {
+            background-color: #4CAF50;
+        }
+        .ride-id {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .error-message {
+            color: #e74c3c;
+            text-align: center;
+            margin: 10px 0;
+        }
+        .filter-info {
+            font-style: italic;
+            color: #555;
+            margin: 5px 0;
+        }
+        .footer {
+            text-align: center;
+            margin-top: 20px;
+            font-size: 12px;
+            color: #777;
+        }
+        @media print {
+            body { background-color: #fff; }
+            .container { box-shadow: none; }
+            .copy-btn { display: none; }
+            .error-message { color: #000; }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Ride History Report for {{ user.fullname}}</h1>
+        <p>Generated on: {{ report_generated_at|date:"F d, Y H:i" }}</p>
+        {% if filter_year %}
+        <p class="filter-info">Filtered by: 
+            {% if filter_month %}
+                {% if filter_month == "1" %}January
+                {% elif filter_month == "2" %}February
+                {% elif filter_month == "3" %}March
+                {% elif filter_month == "4" %}April
+                {% elif filter_month == "5" %}May
+                {% elif filter_month == "6" %}June
+                {% elif filter_month == "7" %}July
+                {% elif filter_month == "8" %}August
+                {% elif filter_month == "9" %}September
+                {% elif filter_month == "10" %}October
+                {% elif filter_month == "11" %}November
+                {% elif filter_month == "12" %}December
+                {% endif %} {{ filter_year }}
+            {% else %}
+                {{ filter_year }}
+            {% endif %}
+        </p>
+        {% endif %}
+        {% if error_message %}
+        <p class="error-message">{{ error_message }}</p>
+        {% endif %}
+        {% if rides %}
+        <table>
+            <thead>
+                <tr>
+                    {% comment %} <th>Ride ID</th> {% endcomment %}
+                    <th>Origin</th>
+                    <th>Destination</th>
+                    <th>Departure Time</th>
+                    <th>Price per Seat</th>
+                    <th>Status</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for ride in rides %}
+                <tr>
+                    {% comment %} <td>
+                        <div class="ride-id">
+                            <span>{{ ride.carpoolride_id }}</span>
+                            <button class="copy-btn" onclick="copyRideId('{{ ride.carpoolride_id }}', this)">Copy</button>
+                        </div>
+                    </td> {% endcomment %}
+                    <td>{{ ride.origin_label }}</td>
+                    <td>{{ ride.destination_label }}</td>
+                    <td>{{ ride.departure_time|date:"F d, Y H:i" }}</td>
+                    <td>KES {{ ride.contribution_per_seat }}</td>
+                    <td>{{ ride.status|capfirst }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+        <p>Total Rides: {{ rides|length }}</p>
+        {% else %}
+        {% if not error_message %}
+        <p class="error-message">No ride history available.</p>
+        {% endif %}
+        {% endif %}
+        <div class="footer">
+            <p>© {{ year }} Duke Rides. All rights reserved.</p>
+        </div>
+    </div>
+    {% comment %} <script>
+        function copyRideId(rideId, button) {
+            if (navigator.clipboard && navigator.clipboard.writeText) {
+                navigator.clipboard.writeText(rideId)
+                    .then(() => {
+                        button.textContent = 'Copied!';
+                        button.classList.add('copied');
+                        setTimeout(() => {
+                            button.textContent = 'Copy';
+                            button.classList.remove('copied');
+                        }, 2000);
+                    })
+                    .catch(err => {
+                        console.error('Clipboard write failed:', err);
+                        fallbackCopy(rideId, button);
+                    });
+            } else {
+                fallbackCopy(rideId, button);
+            }
+        }
+
+        function fallbackCopy(rideId, button) {
+            const textarea = document.createElement('textarea');
+            textarea.value = rideId;
+            textarea.style.position = 'fixed';
+            textarea.style.opacity = '0';
+            document.body.appendChild(textarea);
+            textarea.select();
+            try {
+                document.execCommand('copy');
+                button.textContent = 'Copied!';
+                button.classList.add('copied');
+                setTimeout(() => {
+                    button.textContent = 'Copy';
+                    button.classList.remove('copied');
+                }, 2000);
+            } catch (err) {
+                console.error('Fallback copy failed:', err);
+                alert('Failed to copy Ride ID');
+            } finally {
+                document.body.removeChild(textarea);
+            }
+        }
+    </script> {% endcomment %}
+</body>
+</html>

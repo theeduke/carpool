@@ -1,0 +1,6 @@
+.ride-match-card {
+  transition: transform 0.2s;
+}
+.ride-match-card:hover {
+  transform: scale(1.02);
+}

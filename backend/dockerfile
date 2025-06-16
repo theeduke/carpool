@@ -1,0 +1,75 @@
+FROM python:3.11.9-slim
+
+# Update OS packages to mitigate vulnerabilities
+RUN apt-get update && apt-get upgrade -y && apt-get clean && rm -rf /var/lib/apt/lists/*
+
+# Install psql client (optional, keep for manual debugging) and bash
+RUN apt-get update && apt-get install -y postgresql-client bash && apt-get clean && rm -rf /var/lib/apt/lists/*
+
+# Create a non-root user
+RUN useradd -m -u 1000 appuser
+
+# Set working directory
+WORKDIR /app
+
+# Copy and install dependencies
+COPY requirements.txt .
+RUN pip install --no-cache-dir -r requirements.txt
+
+# Copy application code
+COPY . .
+
+# Create and set permissions for celerybeat-data directory
+RUN mkdir -p /celerybeat-data && chown -R appuser:appuser /celerybeat-data
+
+# Change ownership to non-root user
+RUN chown -R appuser:appuser /app
+
+# Switch to non-root user
+USER appuser
+
+# Expose port for Daphne
+EXPOSE 8001
+
+# Default command for Daphne (overridden in docker-compose.yml for celery)
+CMD ["daphne", "-b", "0.0.0.0", "-p", "8001", "carpoolBackend.asgi:application"]
+
+
+# FROM python:3.11.9-slim
+
+# # Update OS packages to mitigate vulnerabilities
+# RUN apt-get update && apt-get upgrade -y && apt-get clean && rm -rf /var/lib/apt/lists/*
+
+# # Install psql client for wait-for-db.sh
+# RUN apt-get update && apt-get install -y postgresql-client && apt-get clean && rm -rf /var/lib/apt/lists/*
+
+# # Create a non-root user
+# RUN useradd -m -u 1000 appuser
+
+# # Set working directory
+# WORKDIR /app
+
+# # Copy and install dependencies
+# COPY requirements.txt .
+# RUN pip install --no-cache-dir -r requirements.txt
+
+# # Copy application code
+# COPY . .
+
+# # Make wait-for-db.sh executable
+# RUN chmod +x wait-for-db.sh
+
+# # Change ownership to non-root user
+# RUN chown -R appuser:appuser /app
+
+# # Switch to non-root user
+# USER appuser
+
+# # Expose port for Daphne
+# EXPOSE 8001
+
+# # Use wait-for-db.sh as entrypoint to wait for database
+# ENTRYPOINT ["./wait-for-db.sh"]
+
+# # Default command for Daphne (can be overridden in docker-compose.yml)
+# CMD ["daphne", "-b", "0.0.0.0", "-p", "8001", "carpoolBackend.asgi:application"]

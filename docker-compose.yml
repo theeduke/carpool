@@ -1,0 +1,258 @@
+services:
+  django:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    command: >
+      sh -c "sleep 10 && python manage.py makemigrations Taxi && python manage.py migrate && daphne -b 0.0.0.0 -p 8001 carpoolBackend.asgi:application"
+    volumes:
+      - ./backend:/app
+    ports:
+      - "8001:8001"
+    environment:
+      - DEBUG=1
+      - secret_key=${secret_key}
+      - dbname=${dbname}
+      - dbuser=${dbuser}
+      - dbpassword=${dbpassword}
+      - dbhost=${dbhost}
+      - dbport=${dbport}
+      - REDIS_URL=${REDIS_URL}
+      - GOOGLE_APPLICATION_CREDENTIALS=/app/serviceAccountKey.json
+      - DATABASE_URL=postgresql://${dbuser}:${dbpassword}@db:${DBPORT}/${dbname}
+      - DJANGO_SETTINGS_MODULE=carpoolBackend.settings
+    env_file:
+      - .env
+    depends_on:
+      - db
+      - redis
+    networks:
+      - carpool-network
+
+  celery:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    command: >
+      sh -c "sleep 10 && celery -A celery_app worker --loglevel=info"
+    volumes:
+      - ./backend:/app
+    environment:
+      - REDIS_URL=${REDIS_URL}
+      - secret_key=${secret_key}
+      - dbname=${dbname}
+      - dbuser=${dbuser}
+      - dbpassword=${dbpassword}
+      - dbhost=${dbhost}
+      - dbport=${dbport}
+      - GOOGLE_APPLICATION_CREDENTIALS=/app/serviceAccountKey.json
+      - DATABASE_URL=postgresql://${dbuser}:${dbpassword}@db:${DBPORT}/${dbname}
+      - DJANGO_SETTINGS_MODULE=carpoolBackend.settings
+    env_file:
+      - .env
+    depends_on:
+      - redis
+      - db
+    networks:
+      - carpool-network
+
+  celery-beat:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    command: >
+      sh -c "sleep 10 && celery -A celery_app beat --loglevel=info"
+    volumes:
+      - ./backend:/app
+      - celerybeat-data:/celerybeat-data
+    environment:
+      - REDIS_URL=${REDIS_URL}
+      - secret_key=${secret_key}
+      - dbname=${dbname}
+      - dbuser=${dbuser}
+      - dbpassword=${dbpassword}
+      - dbhost=${dbhost}
+      - dbport=${dbport}
+      - GOOGLE_APPLICATION_CREDENTIALS=/app/serviceAccountKey.json
+      - DATABASE_URL=postgresql://${dbuser}:${dbpassword}@db:${DBPORT}/${dbname}
+      - DJANGO_SETTINGS_MODULE=carpoolBackend.settings
+    env_file:
+      - .env
+    depends_on:
+      - redis
+      - db
+    networks:
+      - carpool-network
+  
+  vite:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    command: npm run dev
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules
+    ports:
+      - "5173:5173"
+    environment:
+      - VITE_API_URL=http://django:8001
+      - VITE_FCM_VAPID_KEY=${VITE_FCM_VAPID_KEY}
+    env_file:
+      - .env
+    depends_on:
+      - django
+    networks:
+      - carpool-network
+
+  db:
+    image: postgres:16
+    environment:
+      - POSTGRES_DB=${dbname}
+      - POSTGRES_USER=${dbuser}
+      - POSTGRES_PASSWORD=${dbpassword}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - carpool-network
+
+  redis:
+    image: redis:7
+    networks:
+      - carpool-network
+
+volumes:
+  postgres_data:
+  celerybeat-data:
+
+networks:
+  carpool-network:
+    driver: bridge
+
+
+# # version: '3.8'
+
+# services:
+#   django:
+#     build:
+#       context: ./backend
+#       dockerfile: Dockerfile
+#     command: >
+#       sh -c "python manage.py migrate && daphne -b 0.0.0.0 -p 8001 carpoolBackend.asgi:application"
+#     volumes:
+#       - ./backend:/app
+#     ports:
+#       - "8001:8001"
+#     environment:
+#       - DEBUG=1
+#       - secret_key=${secret_key}
+#       - dbname=${dbname}
+#       - dbuser=${dbuser}
+#       - dbpassword=${dbpassword}
+#       - dbhost=${dbhost}
+#       - dbport=${dbport}
+#       - REDIS_URL=${REDIS_URL}
+#       - GOOGLE_APPLICATION_CREDENTIALS=/app/serviceAccountKey.json
+#       - DATABASE_URL=postgresql://${dbuser}:${dbpassword}@db:${DBPORT}/${dbname}
+#       - DJANGO_SETTINGS_MODULE=carpoolBackend.settings
+#     env_file:
+#       - .env
+#     depends_on:
+#       - db
+#       - redis
+#     networks:
+#       - carpool-network
+
+#   celery:
+#     build:
+#       context: ./backend
+#       dockerfile: Dockerfile
+#     command: celery -A celery_app worker --loglevel=info
+#     volumes:
+#       - ./backend:/app
+#     environment:
+#       - REDIS_URL=${REDIS_URL}
+#       - secret_key=${secret_key}
+#       - dbname=${dbname}
+#       - dbuser=${dbuser}
+#       - dbpassword=${dbpassword}
+#       - dbhost=${dbhost}
+#       - dbport=${dbport}
+#       - GOOGLE_APPLICATION_CREDENTIALS=/app/serviceAccountKey.json
+#       - DATABASE_URL=postgresql://${dbuser}:${dbpassword}@db:${DBPORT}/${dbname}
+#       - DJANGO_SETTINGS_MODULE=carpoolBackend.settings
+#     env_file:
+#       - .env
+#     depends_on:
+#       - redis
+#       - db
+#     networks:
+#       - carpool-network
+
+#   celery-beat:
+#     build:
+#       context: ./backend
+#       dockerfile: Dockerfile
+#     command: celery -A celery_app beat --loglevel=info
+#     volumes:
+#       - ./backend:/app
+#     environment:
+#       - REDIS_URL=${REDIS_URL}
+#       - secret_key=${secret_key}
+#       - dbname=${dbname}
+#       - dbuser=${dbuser}
+#       - dbpassword=${dbpassword}
+#       - dbhost=${dbhost}
+#       - dbport=${dbport}
+#       - GOOGLE_APPLICATION_CREDENTIALS=/app/serviceAccountKey.json
+#       - DATABASE_URL=postgresql://${dbuser}:${dbpassword}@db:${DBPORT}/${dbname}
+#       - DJANGO_SETTINGS_MODULE=carpoolBackend.settings
+#     env_file:
+#       - .env
+#     depends_on:
+#       - redis
+#       - db
+#     networks:
+#       - carpool-network
+
+#   vite:
+#     build:
+#       context: ./frontend
+#       dockerfile: Dockerfile
+#     command: npm run dev
+#     volumes:
+#       - ./frontend:/app
+#       - /app/node_modules
+#     ports:
+#       - "5173:5173"
+#     environment:
+#       - VITE_API_URL=http://django:8001
+#       - VITE_FCM_VAPID_KEY=${VITE_FCM_VAPID_KEY}
+#     env_file:
+#       - .env
+#     depends_on:
+#       - django
+#     networks:
+#       - carpool-network
+
+#   db:
+#     image: postgres:16
+#     environment:
+#       - POSTGRES_DB=${dbname}
+#       - POSTGRES_USER=${dbuser}
+#       - POSTGRES_PASSWORD=${dbpassword}
+#     volumes:
+#       - postgres_data:/var/lib/postgresql/data
+#     networks:
+#       - carpool-network
+
+#   redis:
+#     image: redis:7
+#     networks:
+#       - carpool-network
+
+# volumes:
+#   postgres_data:
+
+# networks:
+#   carpool-network:
+#     driver: bridge

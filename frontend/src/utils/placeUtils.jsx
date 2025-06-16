@@ -1,4 +1,3 @@
-// src/utils/placeUtils.js
 export const formatPlaceLabel = (place) => {
     if (!place || !place.geometry) return "Unnamed location";
   

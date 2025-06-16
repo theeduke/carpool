@@ -2,9 +2,8 @@ import { useEffect, useRef, useState } from "react";
 import { GoogleMap, Marker, Polyline } from "@react-google-maps/api";
 
 const containerStyle = {
-  width: "100%",
-  height: "400px",
-  border: "1px solid red",
+  width: "100%", // Let CSS handle max-width
+  height: "100%", // Let CSS handle the fixed height
 };
 
 function MapComponent({ optimizedRoute, onLocationUpdate, useSimulation, currentLocation }) {
@@ -19,8 +18,6 @@ function MapComponent({ optimizedRoute, onLocationUpdate, useSimulation, current
 
   // Handle polyline decoding (only if route is provided)
   useEffect(() => {
-    console.log("MapComponent received optimizedRoute:", optimizedRoute);
-
     // Validate ride_id
     if (!optimizedRoute || !optimizedRoute.ride_id) {
       console.warn("Missing ride_id in optimizedRoute");
@@ -34,13 +31,13 @@ function MapComponent({ optimizedRoute, onLocationUpdate, useSimulation, current
 
     // Skip if route_id hasn't changed
     if (routeIdRef.current === optimizedRoute.ride_id) {
-      console.log("Skipping polyline decode for same route_id:", optimizedRoute.ride_id);
+      // console.log("Skipping polyline decode for same route_id:", optimizedRoute.ride_id);
       return;
     }
 
     // If no route data, proceed with driver and passenger markers
     if (!optimizedRoute.route || !optimizedRoute.route.overview_polyline?.points) {
-      console.log("No route data provided, rendering map with driver and passenger markers");
+      // console.log("No route data provided, rendering map with driver and passenger markers");
       setPath([]);
       pathRef.current = [];
       setGeometryReady(false);
@@ -53,11 +50,6 @@ function MapComponent({ optimizedRoute, onLocationUpdate, useSimulation, current
       if (decodePath) {
         try {
           const decoded = decodePath(optimizedRoute.route.overview_polyline.points);
-          console.log("Decoded path length:", decoded.length);
-          console.log(
-            "First 5 path coordinates:",
-            decoded.slice(0, 5).map(p => ({ lat: p.lat(), lng: p.lng() }))
-          );
           if (decoded.length > 0) {
             pathRef.current = decoded;
             setPath(decoded);
@@ -87,7 +79,7 @@ function MapComponent({ optimizedRoute, onLocationUpdate, useSimulation, current
   // Handle real-time location updates
   useEffect(() => {
     if (useSimulation) {
-      console.log("Skipping real-time update due to useSimulation=true");
+      // console.log("Skipping real-time update due to useSimulation=true");
       return;
     }
 
@@ -106,7 +98,7 @@ function MapComponent({ optimizedRoute, onLocationUpdate, useSimulation, current
       return;
     }
 
-    console.log("Setting driver position:", { lat, lng });
+    // console.log("Setting driver position:", { lat, lng });
     setDriverPosition({ lat, lng });
     setMarkerOpacity(1); // No blinking in real-time mode
   }, [currentLocation, useSimulation]);
@@ -127,37 +119,48 @@ function MapComponent({ optimizedRoute, onLocationUpdate, useSimulation, current
 
   // Simulation logic
   useEffect(() => {
-    if (!useSimulation || !geometryReady || pathRef.current.length === 0) {
-      console.log("Simulation not started:", { useSimulation, geometryReady, pathLength: pathRef.current.length });
-      return;
-    }
+  if (!useSimulation || !geometryReady || pathRef.current.length === 0) {
+    // console.log("Simulation not started:", { useSimulation, geometryReady, pathLength: pathRef.current.length });
+    return;
+  }
 
-    console.log("Starting simulation with path length:", pathRef.current.length);
-    const interval = setInterval(() => {
-      if (index < pathRef.current.length - 1) {
-        const next = pathRef.current[index + 1];
-        setDriverPosition({ lat: next.lat(), lng: next.lng() });
-        const newLocation = { latitude: next.lat(), longitude: next.lng() }; //ride_id: optimizedRoute?.ride_id // From prop
-        console.log("Simulating driver movement:", newLocation);
+  let lastNotifiedIndex = -1; // Track last index where notification was sent
+
+  const interval = setInterval(() => {
+    if (index < pathRef.current.length - 1) {
+      const next = pathRef.current[index + 1];
+      const newLocation = { latitude: next.lat(), longitude: next.lng() };
+      
+      // Only trigger onLocationUpdate every 5th index to reduce frequency
+      if ((index + 1) % 5 === 0 || index === pathRef.current.length - 2) {
+        // console.log("Simulating driver movement:", newLocation);
         onLocationUpdate?.(newLocation);
-        setIndex((prev) => prev + 1);
+        lastNotifiedIndex = index + 1;
       } else {
-        console.log("Simulation complete, reached end of path");
-        clearInterval(interval);
+        console.log("Skipping onLocationUpdate for index:", index + 1);
       }
-    }, 1000);
 
-    return () => {
-      console.log("Clearing simulation interval");
+      setDriverPosition({ lat: next.lat(), lng: next.lng() });
+      setIndex((prev) => prev + 1);
+    } else {
+      console.log("Simulation complete, reached end of path");
       clearInterval(interval);
-    };
-  }, [useSimulation, geometryReady, index, onLocationUpdate]);
+    }
+  }, 2000); // Increase interval to 2 seconds to reduce frequency
+
+  return () => {
+    console.log("Clearing simulation interval");
+    clearInterval(interval);
+  };
+}, [useSimulation, geometryReady, index, onLocationUpdate]);
 
   // Render map if driverPosition or passenger location is available
   if (!driverPosition && !optimizedRoute?.passengers?.length) {
     return (
-      <div style={{ height: "400px", textAlign: "center", paddingTop: "150px" }}>
+      <div style={{ height: "200px", textAlign: "center", paddingTop: "150px" }}>
+        <div className="conditional-message">
         <p>No location data available</p>
+        </div>
       </div>
     );
   }
@@ -172,7 +175,7 @@ function MapComponent({ optimizedRoute, onLocationUpdate, useSimulation, current
       zoom={14}
       onLoad={(map) => {
         mapRef.current = map;
-        console.log("GoogleMap loaded:", map);
+        // console.log("GoogleMap loaded:", map);
       }}
     >
       {path.length > 0 && (

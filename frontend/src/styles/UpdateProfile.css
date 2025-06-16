@@ -1,0 +1,323 @@
+.profile-container {
+  max-width: 600px;
+  margin: 4rem auto;
+  padding: 2rem;
+  background-color: #f9f9f9;
+  border-radius: 8px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.profile-container h2 {
+  font-size: 1.8rem;
+  color: #333;
+  margin-bottom: 1.5rem;
+  text-align: center;
+}
+
+.alert {
+  padding: 1rem;
+  margin-bottom: 1rem;
+  border-radius: 4px;
+  font-size: 0.9rem;
+}
+
+.alert.error {
+  background-color: #ffe6e6;
+  color: #cc0000;
+}
+
+.alert.success {
+  background-color: #e6ffe6;
+  color: #006600;
+}
+
+.profile-form {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+.form-section {
+  background-color: #fff;
+  padding: 1.5rem;
+  border-radius: 6px;
+  border: 1px solid #ddd;
+}
+
+.form-section h3 {
+  font-size: 1.2rem;
+  color: #555;
+  margin-bottom: 1rem;
+}
+
+.form-group {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.form-group label {
+  font-size: 0.9rem;
+  color: #333;
+  font-weight: 500;
+}
+
+.form-group input[type="tel"] {
+  padding: 0.75rem;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+  font-size: 0.9rem;
+  transition: border-color 0.3s;
+}
+
+.form-group input[type="tel"]:focus {
+  border-color: #007bff;
+  outline: none;
+}
+
+.form-group input[type="file"] {
+  padding: 0.5rem 0;
+}
+
+.read-only {
+  font-size: 0.9rem;
+  color: #555;
+  background-color: #f0f0f0;
+  padding: 0.75rem;
+  border-radius: 4px;
+  border: 1px solid #ddd;
+}
+
+.profile-preview {
+  width: 100px;
+  height: 100px;
+  object-fit: cover;
+  border-radius: 50%;
+  margin-top: 0.5rem;
+}
+
+.checkbox-group {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.checkbox-group input[type="checkbox"] {
+  width: 1rem;
+  height: 1rem;
+}
+
+.checkbox-group label {
+  font-size: 0.9rem;
+  color: #333;
+}
+
+.checkbox-group .disabled-text {
+  font-size: 0.8rem;
+  color: #888;
+}
+
+.vehicle-update-section {
+  margin-top: 1rem;
+}
+
+.vehicle-update-section .form-group {
+  margin-bottom: 1rem;
+}
+
+.vehicle-update-section .vehicle-photo-preview {
+  max-width: 200px;
+  border-radius: 4px;
+  margin-top: 0.5rem;
+}
+
+.profile-form button {
+  padding: 0.75rem;
+  background-color: #007bff;
+  color: #fff;
+  border: none;
+  border-radius: 4px;
+  font-size: 1rem;
+  cursor: pointer;
+  transition: background-color 0.3s;
+}
+
+.profile-form button:hover {
+  background-color: #0056b3;
+}
+
+.profile-form button:disabled {
+  background-color: #ccc;
+  cursor: not-allowed;
+}
+
+@media (max-width: 480px) {
+  .profile-container {
+    padding: 1rem;
+    margin: 1rem;
+  }
+
+  .profile-container h2 {
+    font-size: 1.5rem;
+  }
+
+  .form-section {
+    padding: 1rem;
+  }
+}
+
+
+
+/* .profile-container {
+  max-width: 600px;
+  margin: 2rem auto;
+  padding: 2rem;
+  background-color: #f9f9f9;
+  border-radius: 8px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.profile-container h2 {
+  font-size: 1.8rem;
+  color: #333;
+  margin-bottom: 1.5rem;
+  text-align: center;
+}
+
+.alert {
+  padding: 1rem;
+  margin-bottom: 1rem;
+  border-radius: 4px;
+  font-size: 0.9rem;
+}
+
+.alert.error {
+  background-color: #ffe6e6;
+  color: #cc0000;
+}
+
+.alert.success {
+  background-color: #e6ffe6;
+  color: #006600;
+}
+
+.profile-form {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+.form-section {
+  background-color: #fff;
+  padding: 1.5rem;
+  border-radius: 6px;
+  border: 1px solid #ddd;
+}
+
+.form-section h3 {
+  font-size: 1.2rem;
+  color: #555;
+  margin-bottom: 1rem;
+}
+
+.form-group {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.form-group label {
+  font-size: 0.9rem;
+  color: #333;
+  font-weight: 500;
+}
+
+.form-group input[type="tel"] {
+  padding: 0.75rem;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+  font-size: 0.9rem;
+  transition: border-color 0.3s;
+}
+
+.form-group input[type="tel"]:focus {
+  border-color: #007bff;
+  outline: none;
+}
+
+.form-group input[type="file"] {
+  padding: 0.5rem 0;
+}
+
+.read-only {
+  font-size: 0.9rem;
+  color: #555;
+  background-color: #f0f0f0;
+  padding: 0.75rem;
+  border-radius: 4px;
+  border: 1px solid #ddd;
+}
+
+.profile-preview {
+  width: 100px;
+  height: 100px;
+  object-fit: cover;
+  border-radius: 50%;
+  margin-top: 0.5rem;
+}
+
+.checkbox-group {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.checkbox-group input[type="checkbox"] {
+  width: 1rem;
+  height: 1rem;
+}
+
+.checkbox-group label {
+  font-size: 0.9rem;
+  color: #333;
+}
+
+.checkbox-group .disabled-text {
+  font-size: 0.8rem;
+  color: #888;
+}
+
+.profile-form button {
+  padding: 0.75rem;
+  background-color: #007bff;
+  color: #fff;
+  border: none;
+  border-radius: 4px;
+  font-size: 1rem;
+  cursor: pointer;
+  transition: background-color 0.3s;
+}
+
+.profile-form button:hover {
+  background-color: #0056b3;
+}
+
+.profile-form button:disabled {
+  background-color: #ccc;
+  cursor: not-allowed;
+}
+
+@media (max-width: 480px) {
+  .profile-container {
+    padding: 1rem;
+    margin: 1rem;
+  }
+
+  .profile-container h2 {
+    font-size: 1.5rem;
+  }
+
+  .form-section {
+    padding: 1rem;
+  }
+} */

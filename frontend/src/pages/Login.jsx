@@ -80,7 +80,7 @@ const LoginPage = () => {
 
   const handleGoogleResponse = async (response) => {
     try {
-      await googleLogin(response.credential);
+      await googleLogin(response.credential); // JWT from Google
       toast.success("Google login successful!");
       navigate("/");
     } catch (error) {
@@ -120,7 +120,7 @@ const LoginPage = () => {
       {/* Header */}
       <header className="login-header">
         <div className="logo-placeholder">🚖</div>
-        <h1>Welcome to Taxi App</h1>
+        <h1>Welcome to Duke Rides</h1>
         <p className="tagline">Ride with ease, anytime, anywhere!</p>
       </header>
 

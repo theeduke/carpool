@@ -1,0 +1,9 @@
+{{ subject }}
+
+Dear {{ user_name }},
+
+{{ message }}
+
+---
+© {{ year }} Carpool App. All rights reserved.
+Contact us at support@carpool.com

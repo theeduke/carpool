@@ -1,0 +1,41 @@
+.verify-email-error-container {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  min-height: 100vh;
+  background: linear-gradient(135deg, #fee2e2, #fecaca);
+}
+
+.verify-email-error-box {
+  background: white;
+  padding: 2rem;
+  border-radius: 10px;
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+  width: 100%;
+  max-width: 400px;
+  text-align: center;
+}
+
+.verify-email-error-box h2 {
+  margin-bottom: 1.5rem;
+  color: #333;
+}
+
+.verify-email-error-box p {
+  margin-bottom: 1rem;
+  color: #666;
+}
+
+.btn {
+  display: inline-block;
+  padding: 0.75rem 1.5rem;
+  background: #dc2626;
+  color: white;
+  border-radius: 5px;
+  text-decoration: none;
+  transition: background 0.3s;
+}
+
+.btn:hover {
+  background: #b91c1c;
+}

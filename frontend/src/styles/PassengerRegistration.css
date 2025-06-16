@@ -1,14 +1,166 @@
 .registration-wrapper {
+  display: flex;
+  justify-content: center; /* Horizontal centering */
+  align-items: flex-start; /* Align to the top for better spacing */
+  min-height: 100vh; /* Full screen height */
+  background-color: #f0f4f8; /* Matches driver dashboard background */
+  padding: 20px 0; /* Add vertical padding to prevent content from touching the top */
+}
+
+.passenger-registration-form {
+  width: 90%; /* Use most of the screen width on smaller screens */
+  max-width: 600px; /* Increase max-width for larger screens (up from 400px) */
+  margin: 20px auto;
+  padding: 30px; /* Increase padding for more internal spacing */
+  background-color: #fff;
+  border-radius: 10px; /* Slightly larger radius for a softer look */
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1); /* Slightly stronger shadow for depth */
+  background: linear-gradient(135deg, #e0f7fa 0%, #b2ebf2 100%); /* Consistent with driver dashboard */
+}
+
+/* Add section styling for grouping related fields */
+.form-section {
+  margin-bottom: 30px; /* Space between sections */
+  padding: 20px; /* Internal padding for sections */
+  background-color: rgba(255, 255, 255, 0.8); /* Slight overlay to distinguish sections */
+  border-radius: 8px; /* Rounded corners for sections */
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.05); /* Subtle shadow for sections */
+}
+
+.form-section h3 {
+  font-size: 1.5em;
+  color: #2c3e50; /* Matches driver dashboard headings */
+  margin-bottom: 15px;
+  border-bottom: 1px solid #e0e0e0; /* Subtle separator */
+  padding-bottom: 5px;
+}
+
+.passenger-registration-form h2 {
+  text-align: center;
+  font-size: 2.2em; /* Slightly larger for better hierarchy */
+  margin-bottom: 30px; /* More space below the title */
+  color: #2c3e50; /* Matches driver dashboard */
+}
+
+.passenger-registration-form .error {
+  color: #dc3545;
+  text-align: center;
+  margin-bottom: 20px;
+  font-size: 1em; /* Slightly larger for visibility */
+  background-color: #ffecec; /* Background to match conditional-message warning */
+  padding: 10px;
+  border-radius: 5px;
+}
+
+.passenger-registration-form form {
+  display: flex;
+  flex-direction: column;
+  gap: 20px; /* Increase gap for better spacing */
+}
+
+.passenger-registration-form input,
+.passenger-registration-form select {
+  padding: 12px; /* Slightly more padding for comfort */
+  font-size: 1em;
+  border: 1px solid #ccc;
+  border-radius: 5px; /* Slightly larger radius */
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.passenger-registration-form button {
+  padding: 12px;
+  font-size: 1em;
+  background-color: #2ecc71; /* Match driver dashboard button color */
+  color: white;
+  border: none;
+  border-radius: 5px;
+  cursor: pointer;
+  transition: background-color 0.2s;
+}
+
+.passenger-registration-form button:hover {
+  background-color: #27ae60; /* Match driver dashboard hover color */
+}
+
+.passenger-registration-form button:disabled {
+  background-color: #6c757d;
+  cursor: not-allowed;
+}
+
+.passenger-registration-form .additional-links {
+  text-align: center;
+  margin-top: 20px;
+}
+
+.passenger-registration-form .additional-links .link {
+  color: #739ef5; /* Match button color for consistency */
+  text-decoration: none;
+  font-size: 1em;
+}
+
+.passenger-registration-form .additional-links .link:hover {
+  color: #3274fa; /* Match button hover color */
+  text-decoration: underline;
+}
+
+/* Responsive adjustments */
+@media (max-width: 900px) {
+  .passenger-registration-form {
+    width: 95%; /* Use more of the screen on medium screens */
+    padding: 20px;
+  }
+
+  .form-section {
+    padding: 15px;
+  }
+}
+
+@media (max-width: 600px) {
+  .passenger-registration-form {
+    width: 100%; /* Full width on small screens */
+    padding: 15px;
+    margin: 10px;
+  }
+
+  .passenger-registration-form h2 {
+    font-size: 1.8em;
+  }
+
+  .form-section h3 {
+    font-size: 1.3em;
+  }
+
+  .passenger-registration-form input,
+  .passenger-registration-form select,
+  .passenger-registration-form button {
+    font-size: 0.9em;
+    padding: 10px;
+  }
+
+  .form-section {
+    padding: 10px;
+  }
+
+  .passenger-registration-form .additional-links .link {
+    font-size: 0.9em;
+  }
+}
+
+
+/* .registration-wrapper {
     display: flex;
-    justify-content: center;  /* horizontal */
-    align-items: center;      /* vertical */
-    min-height: 100vh;        /* full screen height */
-    background-color: #f9f9f9; /* optional background */
+    justify-content: center;  /* horizontal 
+    align-items: center;      /* vertical 
+    min-height: 100vh;        /* full screen height 
+    background-color: #f9f9f9; /* optional background 
   }
 .passenger-registration-form {
     max-width: 400px;
     margin: 0 auto;
     padding: 20px;
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+    background: linear-gradient(135deg, #e0f7fa 0%, #aae5fb 100%);
   }
   
   .passenger-registration-form h2 {
@@ -16,54 +168,21 @@
     margin-bottom: 20px;
   }
   
-  .passenger-registration-form input,
-  .passenger-registration-form select {
+  .passenger-registration-form input
+   {
     width: 100%;
     padding: 10px;
     margin: 10px 0;
     border: 1px solid #ccc;
     border-radius: 4px;
   }
-  
-  .passenger-registration-form button {
-    width: 100%;
-    padding: 10px;
-    background-color: #007bff;
-    color: white;
-    border: none;
-    border-radius: 4px;
-    cursor: pointer;
-  }
-  
-  .passenger-registration-form button:disabled {
-    background-color: #6c757d;
-    cursor: not-allowed;
-  }
-  
-  .passenger-registration-form .error {
-    color: red;
-    text-align: center;
-    margin-bottom: 10px;
-  }
-
-/* .passenger-registration-form {
-    max-width: 400px;
-    margin: 0 auto;
-    padding: 20px;
-  }
-  
-  .passenger-registration-form h2 {
-    text-align: center;
-    margin-bottom: 20px;
-  }
-  
-  .passenger-registration-form input,
   .passenger-registration-form select {
-    width: 100%;
     padding: 10px;
-    margin: 10px 0;
+    font-size: 1em;
     border: 1px solid #ccc;
     border-radius: 4px;
+    width: 100%;
+    box-sizing: border-box;
   }
   
   .passenger-registration-form button {

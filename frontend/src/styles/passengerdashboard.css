@@ -1,0 +1,217 @@
+/* General Styles */
+.passenger-dashboard {
+  font-family: 'Arial', sans-serif;
+  color: #333;
+  padding: 20px;
+  background-color: #f0f4f8;
+  min-height: 100vh;
+}
+
+/* Notifications */
+.notifications {
+  max-width: 500px;
+  margin: 20px auto;
+  padding: 15px;
+  background-color: white;
+  border-radius: 10px;
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+  background: linear-gradient(135deg, #f0f7ff 0%, #b2e1ff 100%);
+}
+
+.notifications h4 {
+  font-size: 1.5em;
+  color: #2c3e50;
+  margin-bottom: 10px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.badge {
+  background-color: #e74c3c;
+  color: white;
+  padding: 5px 10px;
+  border-radius: 10px;
+  font-size: 0.9em;
+}
+
+.notification-list {
+  max-height: 200px;
+  overflow-y: auto;
+}
+
+.notification-item {
+  display: flex;
+  align-items: center;
+  padding: 10px;
+  margin-bottom: 10px;
+  background-color: #fff;
+  border-radius: 5px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+}
+
+.notification-item.new {
+  border-left: 4px solid #3498db;
+}
+
+.icon {
+  font-size: 1.2em;
+  margin-right: 10px;
+}
+
+.content {
+  flex-grow: 1;
+}
+
+.content p {
+  margin: 0;
+  color: #333;
+}
+
+.content small {
+  color: #666;
+  font-size: 0.9em;
+}
+
+.notification-item button {
+  padding: 5px 10px;
+  background-color: #e74c3c;
+  color: white;
+  border: none;
+  border-radius: 5px;
+  cursor: pointer;
+}
+
+.notification-item button:hover {
+  background-color: #c0392b;
+}
+
+
+.MapComponent {
+  width: 100%;
+  max-width: 800px;
+  height: 400px;
+  margin: 20px auto;
+  border-radius: 12px;
+  overflow: hidden;
+  box-shadow: 0 6px 12px rgba(0, 0, 0, 0.15);
+  border: 2px solid #3498db;
+  background-color: #f9fbfd;
+  transition: transform 0.2s ease, box-shadow 0.3s ease;
+  position: relative;
+}
+
+.MapComponent:hover {
+  transform: scale(1.02);
+  box-shadow: 0 8px 16px rgba(0, 0, 0, 0.2);
+}
+
+/* Map Overlay (Optional for better integration with the theme) */
+.MapComponent::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(135deg, rgba(52, 152, 219, 0.1) 0%, rgba(178, 225, 255, 0.1) 100%);
+  pointer-events: none;
+}
+
+/* Upcoming Rides Section */
+.passenger-dashboard h2,
+.passenger-dashboard h3 {
+  font-size: 1.8em;
+  color: #2c3e50;
+  margin: 20px 0 15px;
+  text-align: center;
+}
+
+.passenger-dashboard ul {
+  list-style: none;
+  padding: 0;
+  max-width: 600px;
+  margin: 0 auto;
+}
+
+.passenger-dashboard li {
+  background-color: white;
+  border-radius: 10px;
+  padding: 15px;
+  margin-bottom: 20px;
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+  background: linear-gradient(135deg, #f0f7ff 0%, #b2e1ff 100%);
+}
+
+.passenger-dashboard li h4 {
+  font-size: 1.5em;
+  color: #2c3e50;
+  margin: 0 0 10px;
+}
+
+.passenger-dashboard li p {
+  font-size: 1.1em;
+  color: #333;
+  margin: 5px 0;
+}
+
+.passenger-dashboard li button {
+  padding: 8px 15px;
+  font-size: 1em;
+  background-color: #e74c3c;
+  color: white;
+  border: none;
+  border-radius: 5px;
+  cursor: pointer;
+  transition: background-color 0.3s;
+}
+
+.passenger-dashboard li button:hover {
+  background-color: #c0392b;
+}
+
+/* Conditional Messages */
+.conditional-message {
+  max-width: 600px;
+  margin: 20px auto;
+  padding: 15px;
+  background-color: white;
+  border-radius: 10px;
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+  background: linear-gradient(135deg, #f0f7ff 0%, #b2e1ff 100%);
+  text-align: center;
+  color: #333;
+}
+
+.conditional-message p {
+  font-size: 1.1em;
+  margin: 10px 0;
+}
+
+/* Responsive Design */
+@media (max-width: 600px) {
+  .notifications,
+  .passenger-dashboard li,
+  .conditional-message {
+    margin: 10px;
+    padding: 10px;
+  }
+
+  .notifications h4,
+  .passenger-dashboard h2,
+  .passenger-dashboard h3,
+  .passenger-dashboard li h4 {
+    font-size: 1.5em;
+  }
+
+  
+
+  .passenger-dashboard li p {
+    font-size: 1em;
+  }
+
+  .passenger-dashboard li button {
+    width: 100%;
+    padding: 8px;
+  }
+}

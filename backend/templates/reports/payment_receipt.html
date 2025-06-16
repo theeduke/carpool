@@ -1,0 +1,266 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Payment Receipts Report</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+            background-color: #f4f4f4;
+            color: #333;
+        }
+        .container {
+            max-width: 900px;
+            margin: 0 auto;
+            background-color: #fff;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        }
+        h1 {
+            text-align: center;
+            color: #4CAF50;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 20px;
+        }
+        th, td {
+            padding: 12px;
+            text-align: left;
+            border: 1px solid #ddd;
+        }
+        th {
+            background-color: #4CAF50;
+            color: #fff;
+        }
+        tr:nth-child(even) {
+            background-color: #f2f2f2;
+        }
+        .copy-btn {
+            background-color: #2196F3;
+            color: white;
+            border: none;
+            padding: 4px 8px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 12px;
+        }
+        .copy-btn:hover {
+            background-color: #1976D2;
+        }
+        .copy-btn.copied {
+            background-color: #4CAF50;
+        }
+        .transaction-id {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .error-message {
+            color: #e74c3c;
+            text-align: center;
+            margin: 10px 0;
+        }
+        .filter-info {
+            font-style: italic;
+            color: #555;
+            margin: 5px 0;
+        }
+        .footer {
+            text-align: center;
+            margin-top: 20px;
+            font-size: 12px;
+            color: #777;
+        }
+        @media print {
+            body { background-color: #fff; }
+            .container { box-shadow: none; }
+            .copy-btn { display: none; }
+            .error-message { color: #000; }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Payment Receipts Report for {{ user.fullname}}</h1>
+        <p>Generated on: {{ report_generated_at|date:"F d, Y H:i" }}</p>
+        {% if filter_year %}
+        <p class="filter-info">Filtered by: 
+            {% if filter_month %}
+                {% if filter_month == "1" %}January
+                {% elif filter_month == "2" %}February
+                {% elif filter_month == "3" %}March
+                {% elif filter_month == "4" %}April
+                {% elif filter_month == "5" %}May
+                {% elif filter_month == "6" %}June
+                {% elif filter_month == "7" %}July
+                {% elif filter_month == "8" %}August
+                {% elif filter_month == "9" %}September
+                {% elif filter_month == "10" %}October
+                {% elif filter_month == "11" %}November
+                {% elif filter_month == "12" %}December
+                {% endif %} {{ filter_year }}
+            {% else %}
+                {{ filter_year }}
+            {% endif %}
+        </p>
+        {% endif %}
+        {% if error_message %}
+        <p class="error-message">{{ error_message }}</p>
+        {% endif %}
+        {% if transactions %}
+        <table>
+            <thead>
+                <tr>
+                    {% comment %} <th>Transaction ID</th> {% endcomment %}
+                    {% comment %} <th>Ride ID</th> {% endcomment %}
+                    <th>Transaction Reference</th>
+                    {% comment %} <th> spending labelType</th> {% endcomment %}
+                    <th>Trasaction type</th>
+                    <th>Amount</th>
+                    <th>Sender</th>
+                    <th>Recipient</th>
+                    <th>Date</th>
+                    <th>Status</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for transaction in transactions %}
+                <tr>
+                    {% comment %} <td>
+                        <div class="transaction-id">
+                            <span>{{ transaction.transaction_id }}</span>
+                            <button class="copy-btn" onclick="copyTransactionId('{{ transaction.transaction_id }}', this)">Copy</button>
+                        </div>
+                    </td> {% endcomment %}
+                    {% comment %} <td>{{ transaction.ride_id }}</td> {% endcomment %}
+                    <td>{{ transaction.reference}}</td>
+                    <td>{{transaction.spending_type}}</td>
+                    {% comment %} <td>{{transaction.transaction_type}}</td> {% endcomment %}
+                    <td>KES {{ transaction.amount }}</td>
+                    <td>{{ transaction.sender_name }}</td>
+                    <td>{{ transaction.recipient_name }}</td>
+                    <td>{{ transaction.created_at|date:"F d, Y H:i" }}</td>
+                    <td>{{ transaction.status|capfirst }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+        <p>Total Transactions: {{ transactions|length }}</p>
+        {% else %}
+        {% if not error_message %}
+        <p class="error-message">No payment receipts available.</p>
+        {% endif %}
+        {% endif %}
+        <div class="footer">
+            <p>© {{ year }} Duke Rides. All rights reserved.</p>
+        </div>
+    </div>
+    {% comment %} <script>
+        function copyTransactionId(transactionId, button) {
+            if (navigator.clipboard && navigator.clipboard.writeText) {
+                navigator.clipboard.writeText(transactionId)
+                    .then(() => {
+                        button.textContent = 'Copied!';
+                        button.classList.add('copied');
+                        setTimeout(() => {
+                            button.textContent = 'Copy';
+                            button.classList.remove('copied');
+                        }, 2000);
+                    })
+                    .catch(err => {
+                        console.error('Clipboard write failed:', err);
+                        fallbackCopy(transactionId, button);
+                    });
+            } else {
+                fallbackCopy(transactionId, button);
+            }
+        }
+
+        function fallbackCopy(transactionId, button) {
+            const textarea = document.createElement('textarea');
+            textarea.value = transactionId;
+            textarea.style.position = 'fixed';
+            textarea.style.opacity = '0';
+            document.body.appendChild(textarea);
+            textarea.select();
+            try {
+                document.execCommand('copy');
+                button.textContent = 'Copied!';
+                button.classList.add('copied');
+                setTimeout(() => {
+                    button.textContent = 'Copy';
+                    button.classList.remove('copied');
+                }, 2000);
+            } catch (err) {
+                console.error('Fallback copy failed:', err);
+                alert('Failed to copy Transaction ID');
+            } finally {
+                document.body.removeChild(textarea);
+            }
+        }
+    </script> {% endcomment %}
+</body>
+</html>
+
+
+
+{% comment %} <!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Payment Receipts Report</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; background-color: #f4f4f4; color: #333; }
+        .container { max-width: 900px; margin: 0 auto; background-color: #fff; padding: 20px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1); }
+        h1 { text-align: center; color: #4CAF50; }
+        table { width: 100%; border-collapse: collapse; margin-top: 20px; }
+        th, td { padding: 12px; text-align: left; border: 1px solid #ddd; }
+        th { background-color: #4CAF50; color: #fff; }
+        tr:nth-child(even) { background-color: #f2f2f2; }
+        .footer { text-align: center; margin-top: 20px; font-size: 12px; color: #777; }
+        @media print { body { background-color: #fff; } .container { box-shadow: none; } }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Payment Receipts Report for {{ user.fullname }}</h1>
+        <p>Generated on: {{ report_generated_at|date:"F d, Y H:i" }}</p>
+        {% if transactions %}
+        <table>
+            <thead>
+                <tr>
+                    <th>Transaction ID</th>
+                    <th>Ride ID</th>
+                    <th>Amount</th>
+                    <th>Date</th>
+                    <th>Status</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for transaction in transactions %}
+                <tr>
+                    <td>{{ transaction.transaction_id }}</td>
+                    <td>{{ transaction.ride_id }}</td>
+                    <td>KES {{ transaction.amount }}</td>
+                    <td>{{ transaction.created_at|date:"F d, Y H:i" }}</td>
+                    <td>{{ transaction.status|capfirst }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+        <p>Total Transactions: {{ transactions|length }}</p>
+        {% else %}
+        <p>No payment receipts available.</p>
+        {% endif %}
+        <div class="footer">
+            <p>© {{ year }} Carpool App. All rights reserved.</p>
+        </div>
+    </div>
+</body>
+</html> {% endcomment %}

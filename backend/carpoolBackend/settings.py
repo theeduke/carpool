@@ -14,6 +14,7 @@ from pathlib import Path
 from decouple import config
 from datetime import timedelta
 import os
+from celery.schedules import crontab
 
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
@@ -42,7 +43,7 @@ ALLOWED_HOSTS = [
 # Application definition
 
 INSTALLED_APPS = [
-    # "daphne",
+    "daphne",
     'channels',
     'django.contrib.admin',
     'django.contrib.auth',
@@ -69,10 +70,35 @@ AUTH_USER_MODEL = 'Taxi.CustomUser'
 
 
 # Redis for WebSocket message storage
+# CHANNEL_LAYERS = {
+#     "default": {
+#         "BACKEND": "channels.layers.InMemoryChannelLayer",  # Use Redis in production
+#     }
+# }
+# use docker settings
 CHANNEL_LAYERS = {
     "default": {
-        "BACKEND": "channels.layers.InMemoryChannelLayer",  # Use Redis in production
-    }
+        "BACKEND": "channels_redis.core.RedisChannelLayer",
+        "CONFIG": {
+            "hosts": [config("REDIS_URL")],
+        },
+    },
+}
+#logging
+LOGGING = {
+    'version': 1,
+    'disable_existing_loggers': False,
+    'handlers': {
+        'console': {
+            'class': 'logging.StreamHandler',
+        },
+    },
+    'loggers': {
+        '': {
+            'handlers': ['console'],
+            'level': 'INFO',
+        },
+    },
 }
 # CHANNEL_LAYERS = {
 #     'default': {
@@ -82,6 +108,28 @@ CHANNEL_LAYERS = {
 #         },
 #     },
 # }
+
+# Celery Configuration
+CELERY_BROKER_URL = config('REDIS_URL') #'redis://127.0.0.1:6379/0'  # Use Redis as the broker
+CELERY_RESULT_BACKEND = config('REDIS_URL') #'redis://127.0.0.1:6379/0'  # Store task results
+CELERY_ACCEPT_CONTENT = ['json']
+CELERY_TASK_SERIALIZER = 'json'
+CELERY_RESULT_SERIALIZER = 'json'
+CELERY_TIMEZONE = 'UTC'
+CELERY_BEAT_SCHEDULE_FILENAME = '/celerybeat-data/celerybeat-schedule.db'
+# CELERY_BEAT_SCHEDULE_FILENAME = '/app/celerybeat-schedule.db'
+CELERY_BROKER_CONNECTION_RETRY_ON_STARTUP = True
+CELERY_BEAT_SCHEDULE = {
+    "match-passengers-every-5-minutes": {
+        "task": "Taxi.tasks.match_passengers_to_rides",
+        "schedule": crontab(minute="*/5"),  # Run every 5 minutes
+    },
+    # "check-license-expiry-every-day": {
+    #     "task": "Taxi.tasks.check_license_expiry",
+    #     "schedule": crontab(hour=0, minute=0),  # Run daily at midnight
+    # },
+    # Add other tasks as needed
+}
 
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
@@ -114,11 +162,10 @@ CORS_ALLOWED_ORIGIN_REGEXES = [
 ]
 
 CORS_ALLOWED_ORIGINS = [
-    # "https://mantis-exciting-evidently.ngrok-free.app",
+    
     "http://localhost:5173",  #  frontend URL
     "http://127.0.0.1:5173",
-    # "https://pesapal.com",
-    # "https://www.pesapal.com",
+
 ]
 
 CORS_ALLOW_METHODS = [
@@ -141,7 +188,7 @@ ROOT_URLCONF = 'carpoolBackend.urls'
 TEMPLATES = [
     {
         'BACKEND': 'django.template.backends.django.DjangoTemplates',
-        'DIRS': [],
+        'DIRS': [BASE_DIR / 'templates'],
         'APP_DIRS': True,
         'OPTIONS': {
             'context_processors': [
@@ -160,26 +207,26 @@ WSGI_APPLICATION = 'carpoolBackend.wsgi.application'
 # Database
 # https://docs.djangoproject.com/en/5.1/ref/settings/#databases
 
-DATABASES = {
-    'default': {
-        'ENGINE': 'django.db.backends.sqlite3',
-        'NAME': BASE_DIR / 'db.sqlite3',
-    }
-}
+# DATABASES = {
+#     'default': {
+#         'ENGINE': 'django.db.backends.sqlite3',
+#         'NAME': BASE_DIR / 'db.sqlite3',
+#     }
+# }
 
 
 # # for postgres
-# DATABASES = {
-#     'default': {
-#         'ENGINE': 'django.db.backends.postgresql',
+DATABASES = {
+    'default': {
+        'ENGINE': 'django.db.backends.postgresql',
 
-#         'NAME': config('dbname'),
-#         'USER': config('dbuser'),
-#         'PASSWORD':config('dbpassword'),
-#         'PORT': config('dbport'),
-#         'HOST': config('dbhost')
-#     }
-# }
+        'NAME': config('dbname'),
+        'USER': config('dbuser'),
+        'PASSWORD':config('dbpassword'),
+        'PORT': config('dbport'),
+        'HOST': config('dbhost')
+    }
+}
 
 # Password validation
 # https://docs.djangoproject.com/en/5.1/ref/settings/#auth-password-validators
@@ -223,7 +270,8 @@ REST_FRAMEWORK = {
 
 LANGUAGE_CODE = 'en-us'
 
-TIME_ZONE = 'UTC'
+# TIME_ZONE = 'UTC'
+TIME_ZONE = 'Africa/Nairobi'
 
 USE_I18N = True
 
@@ -234,6 +282,14 @@ USE_TZ = True
 # https://docs.djangoproject.com/en/5.1/howto/static-files/
 
 STATIC_URL = 'static/'
+# STATICFILES_DIRS = [BASE_DIR / "static"]  # Optional: For development, if you have static files are in a 'static' folder
+# STATIC_ROOT = BASE_DIR / "staticfiles"    # For production, where 'collectstatic' will gather files
+
+#media
+# Media files (User-uploaded files like vehicle photos, profile pictures)
+MEDIA_URL = '/media/'
+MEDIA_ROOT = os.path.join(BASE_DIR, 'media')
+# MEDIA_ROOT = BASE_DIR/"media"
 
 # Default primary key field type
 # https://docs.djangoproject.com/en/5.1/ref/settings/#default-auto-field
@@ -243,22 +299,25 @@ DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
 #mpesa settings
 
-MPESA_CONSUMER_KEY = config("mpesa_Consumer_Key")
-MPESA_CONSUMER_SECRET = config("mpesa_Consumer_Secret")
-MPESA_SHORTCODE = config("MPESA_SHORTCODE")
-MPESA_INITIATOR = config("MPESA_INITIATOR")
-MPESA_SECURITY_CREDENTIAL = config("MPESA_SECURITY_CREDENTIAL")
-MPESA_STK_PUSH_URL = config("MPESA_STK_PUSH_URL")
-MPESA_B2C_URL = config("MPESA_B2C_URL")
-MPESA_CALLBACK_URL = config("MPESA_CALLBACK_URL")
-MPESA_B2C_TIMEOUT_URL = config("MPESA_B2C_TIMEOUT_URL")
-MPESA_B2C_RESULT_URL = config("MPESA_B2C_RESULT_URL")
+# MPESA_CONSUMER_KEY = config("mpesa_Consumer_Key")
+# MPESA_CONSUMER_SECRET = config("mpesa_Consumer_Secret")
+# MPESA_SHORTCODE = config("MPESA_SHORTCODE")
+# MPESA_INITIATOR = config("MPESA_INITIATOR")
+# MPESA_SECURITY_CREDENTIAL = config("MPESA_SECURITY_CREDENTIAL")
+# MPESA_STK_PUSH_URL = config("MPESA_STK_PUSH_URL")
+# MPESA_B2C_URL = config("MPESA_B2C_URL")
+# MPESA_CALLBACK_URL = config("MPESA_CALLBACK_URL")
+# MPESA_B2C_TIMEOUT_URL = config("MPESA_B2C_TIMEOUT_URL")
+# MPESA_B2C_RESULT_URL = config("MPESA_B2C_RESULT_URL")
 
 
 
-#backend url
-BACKEND_URL = config('BACKEND_URL', default="http://localhost:8000")
-FRONTEND_URL = config('FRONTEND_URL')
+#backend url & frontend urls
+BACKEND_URL = config('BACKEND_URL') # inside docker network
+FRONTEND_URL = config('FRONTEND_URL') # TO GET FRONEND outside docker
+DEVBACKEND_URL = config('BACKEND_URLREQUESTS', default="http://localhost:8001") # outside docker network
+
+
 
 #google settings
 GOOGLE_OAUTH2_CLIENT_ID = config('client_id')
@@ -319,4 +378,5 @@ SIMPLE_JWT = {
 }
 
 # FCM_SERVER_KEY=config("fcm_server_key")
-FIREBASE_CREDENTIALS=os.path.join(BASE_DIR, 'serviceAccountKey.json')
+FIREBASE_CREDENTIALS = os.getenv('GOOGLE_APPLICATION_CREDENTIALS', os.path.join(BASE_DIR, 'serviceAccountKey.json'))
+# FIREBASE_CREDENTIALS=os.path.join(BASE_DIR, 'serviceAccountKey.json')

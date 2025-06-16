@@ -4,17 +4,29 @@ import Navbar from "./components/Navbar";
 import Home from "./pages/Home";
 import PassengerRegistration from "./pages/PassegerRegistrationPage";
 import DriverRegister from "./pages/DriverRegistrationPage";
-import LoginPage from "./pages/Login"
-import PasswordReset from "./pages/PasswordResetPage"
-import PasswordResetRequest from "./pages/PasswordResetRequestPage"
+import LoginPage from "./pages/Login";
+import PasswordReset from "./pages/PasswordResetPage";
+import PasswordResetRequest from "./pages/PasswordResetRequestPage";
+import WalletTopUp from "./pages/WalletTopUpPage";
+import WalletWithdrawal from "./pages/WalletWithdrawalPage";
+import TransferFunds from "./components/TransferFunds";
+import UserProfile from "./pages/UserProfilePage";
+import UpdateProfile from "./components/UpdateProfile";
 import DashboardPage from "./pages/DashboardPage";
 import RideHistoryPage from "./pages/RideHistoryPage";
 import SearchRidesPage from "./pages/SearchRidesPage";
+import RideMatches from './components/RideMatches';
 import DriverDashboardPage from "./pages/DriverDashboardPage";
 import { AuthProvider } from "./context/AuthContext";
 import ProtectedRoute from "./components/ProtectedRoute"; // Correct import
 import { ToastContainer } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
+import VerifyEmailPrompt from "./components/VerifyEmailPrompt";
+import VerifyEmailSuccess from "./components/VerifyEmailSuccess";
+import VerifyEmailError from './components/VerifyEmailError';
+import VerifiedEmailHandler from "./components/VerifiedEmailHandler";
+import Reports from "./components/Reports";
+
 
 function App() {
   const libraries = ["places",'geometry'];
@@ -40,11 +52,24 @@ function App() {
               <Route path="/login" element={<LoginPage />} />
               <Route path="/forgot-password" element={<PasswordResetRequest />} />
               <Route path="/password-reset" element={<PasswordReset />} />
+              <Route path="/ride-matches" element={<RideMatches />} />
+              <Route path="/verify-email-success" element={<VerifyEmailSuccess />} />
+              <Route path="/verify-email-prompt" element={<VerifyEmailPrompt />} />
+              <Route path="/verify-email" element={<VerifiedEmailHandler />} />
+              <Route path="/verify-email-error" element={<VerifyEmailError />} />
               <Route
                 path="/dashboard"
                 element={
                   <ProtectedRoute>
                     <DashboardPage />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/reports"
+                element={
+                  <ProtectedRoute>
+                    <Reports />
                   </ProtectedRoute>
                 }
               />
@@ -65,6 +90,47 @@ function App() {
                   </ProtectedRoute>
                 }
               />
+              <Route
+                path="/wallet/topup"
+                element={
+                  <ProtectedRoute>
+                    <WalletTopUp />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/wallet-withdrawal"
+                element={
+                  <ProtectedRoute>
+                    <WalletWithdrawal/>
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/wallet/send-money"
+                element={
+                  <ProtectedRoute>
+                    <TransferFunds />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/profile"
+                element={
+                  <ProtectedRoute>
+                    <UserProfile/>
+                  </ProtectedRoute>
+                }
+              /> 
+              <Route
+                path="/profile-update"
+                element={
+                  <ProtectedRoute>
+                    <UpdateProfile/>
+                  </ProtectedRoute>
+                }
+              /> 
+
             </Routes>
           </main>
           <Navbar />

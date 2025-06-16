@@ -4,6 +4,8 @@ import { authService } from "../services/api"; // Adjust path
 import { toast } from "react-toastify";
 import { initializeApp } from "firebase/app";
 import { getMessaging, getToken } from "firebase/messaging";
+import { scheduleTokenRefresh } from '../utils/auth';
+
 
 const firebaseConfig = {
   // Firebase config object
@@ -119,6 +121,8 @@ export const AuthProvider = ({ children }) => {
         is_driver,
         phone_number,
       });
+
+      scheduleTokenRefresh();
       // vapidkey is used to subscribe browser to push notification without it getToken fails
       // getToken(messaging, { vapidKey: "BF_8YdlgW9dN3fARt85aAmpIQgzC0mI9mrUPNJTiR6XunWeogMrGbsXPk7FnsUWR2twGOrl2wpg4sTFcjCOu6Xc" })
       getToken(messaging, { vapidKey: import.meta.env.VITE_VAPID_KEY })
@@ -141,8 +145,11 @@ export const AuthProvider = ({ children }) => {
   // Google login (for GIS)
   const googleLogin = async (token) => {
     try {
-      const response = await authService.googleLogin(token);
-      const { access_token, refresh_token, id, fullname, is_driver, phone_number } = response.data;
+      // const response = await authService.googleLogin({ token: response.credential })
+      const response = await authService.googleLogin({ token });
+      // const response = await authService.googleLogin(response.credential);
+      const { access_token, refresh_token, user } = response.data;
+      const { id, fullname, is_driver, phone_number } = user;
       // const profileResponse = await authService.getProfile();
       localStorage.setItem("access_token", access_token);
       localStorage.setItem("refresh_token", refresh_token);
@@ -150,7 +157,9 @@ export const AuthProvider = ({ children }) => {
       localStorage.setItem("fullname", fullname);
       localStorage.setItem("is_driver", is_driver);
       localStorage.setItem("phone_number", phone_number);
+      
       setUser({ id, fullname, is_driver,access_token, refresh_token, phone_number });
+      console.log("this is the response in google login", response.data)
       return response.data;
     } catch (error) {
       throw error;

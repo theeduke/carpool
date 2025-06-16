@@ -23,20 +23,28 @@ class DriverDashboardView(APIView):
             "is_verified": user.is_verified,
             "wallet_balance": user.wallet_balance,
             "rating": user.rating,
+            "id":user.id,
         })
 
         #to list ride requests for the driver
 from Taxi.serializers import RideRequestSerializer, CarpoolRideSerializer
 from Taxi.models import CarpoolRide
 from rest_framework.viewsets import ModelViewSet
+import logging
+
+logger = logging.getLogger(__name__)
 class DriverRideRequestsView(ListAPIView):
     serializer_class = RideRequestSerializer
     permission_classes = [IsAuthenticated]
-
+    
     def get_queryset(self):
-        return RideRequest.objects.filter(ride__driver=self.request.user,
-                                          ride__status__in=['pending', 'in_progress']
-                                          ).order_by('-created_at')
+        queryset = RideRequest.objects.filter(
+            ride__driver=self.request.user,
+            ride__status__in=['pending', 'in_progress'],
+            status__in=['pending', 'accepted']
+        ).order_by('-created_at')
+        logger.debug(f"Driver ride requests queryset: {queryset.count()} requests")
+        return queryset
     
     # API Endpoint for Drivers to Post Rides:
 from Taxi.serializers import CarpoolRideCreateSerializer
@@ -55,9 +63,11 @@ class CreateCarpoolRideView(CreateAPIView):
         ).exists()
 
         if ongoing_ride:
+            # raise ValidationError({
+            #     "non_field_errors": ["You already have an active ride in progress or pending. Please complete it before creating a new one."]
+            # })
             raise ValidationError("You already have an active ride in progress or pending. Please complete it before creating a new one.")
-        
-        # serializer.save(driver=self.request.user)
+   
         try:
             serializer.save(driver=self.request.user)
         except ValidationError as e:
@@ -77,13 +87,7 @@ class UpdateCarpoolRideView(UpdateAPIView):
             raise PermissionDenied("You can only update your own rides.")
 
         # Parse departure_time if needed
-        # departure_time = self.request.data.get('departure_time')
-        # if departure_time:
-        #     parsed_time = parse_datetime(departure_time)
-        #     if parsed_time:
-        #         serializer.validated_data['departure_time'] = parsed_time
-        #     else:
-        #         raise serializers.ValidationError("Invalid departure time format")
+       
         logger.info(f"Validated data before save: {serializer.validated_data}")
         print(f"Validated data before save: {serializer.validated_data}")
         updated_ride = serializer.save()
@@ -97,20 +101,6 @@ class UpdateCarpoolRideView(UpdateAPIView):
             # notify_user(req.passenger, message)
 
         return updated_ride
-
-    # def perform_update(self, serializer):
-    #     print(f"Incoming data: {self.request.data}")  # Prints to terminal
-
-    #     # Ensure only the driver can update their ride
-    #     if serializer.instance.driver != self.request.user:
-    #         raise PermissionDenied("You can only update your own rides.")
-    #     updated_ride = serializer.save()
-    #     # Notify passengers of the update
-    #     accepted_requests = RideRequest.objects.filter(ride=updated_ride, status="accepted")
-    #     for req in accepted_requests:
-    #         message = f"The ride from {updated_ride.origin['label']} to {updated_ride.destination['label']} has been updated by the driver. New departure time: {updated_ride.departure_time}. Please review and cancel if it no longer suits you."
-    #         notify_user(req.passenger, message)
-    #     return updated_ride
     
         # driver rides viewset
 class CarpoolRideViewSet(ModelViewSet):
@@ -129,10 +119,16 @@ class CarpoolRideViewSet(ModelViewSet):
             queryset = queryset.filter(is_women_only=True)
         return queryset
 from Taxi.serializers import RideHistorySerializer
+from rest_framework.pagination import PageNumberPagination
+class CustomPagination(PageNumberPagination):
+    page_size = 5  # Default number of items per page
+    page_size_query_param = 'limit'  # Allow client to specify limit
+    max_page_size = 10  # Maximum limit
+
 class RideHistoryView(ListAPIView):
-    """official for ride history"""
     serializer_class = RideHistorySerializer
     permission_classes = [IsAuthenticated]
+    pagination_class = CustomPagination
 
     def get_queryset(self):
         user = self.request.user
@@ -140,12 +136,22 @@ class RideHistoryView(ListAPIView):
         return CarpoolRide.objects.filter(
             Q(driver=user) | Q(carpoolride_id__in=user_requests),
             status='completed'
-        ).distinct().order_by('-departure_time')
-
-    def get_serializer_context(self):
-        context = super().get_serializer_context()
-        context['request'] = self.request
-        return context
+        ).distinct().order_by('-last_updated')
+       
+    def list(self, request, *args, **kwargs):
+        queryset = self.get_queryset()
+        page = self.paginate_queryset(queryset)
+        if page is not None:
+            serializer = self.get_serializer(page, many=True)
+            return self.get_paginated_response(serializer.data)  # Use built-in paginated response
+        serializer = self.get_serializer(queryset, many=True)
+        return Response({
+            'results': serializer.data,
+            'total': queryset.count(),
+            'total_pages': 1,
+            'current_page': 1,
+        })
+        
 
 
 
@@ -198,26 +204,7 @@ class DriverCancelRideView(APIView):
             "message": "Ride cancelled successfully. All passengers have been refunded and notified.",
         }, status=status.HTTP_200_OK)
         
-from rest_framework.viewsets import ModelViewSet
-# allow users to filter by is_women_only
-"""to be deleted, better version above it"""
-# class CarpoolRideViewSet(ModelViewSet):
-#     """for passengers to view/filter rides, especially females"""
-#     queryset = CarpoolRide.objects.all()
-#     serializer_class = CarpoolRideSerializer
 
-#     def get_queryset(self):
-#         queryset = super().get_queryset()
-#         is_women_only = self.request.query_params.get("is_women_only", None)
-
-#         # If filtering by women-only rides
-#         if is_women_only == "true":
-#             queryset = queryset.filter(is_women_only=True)
-
-#         return queryset
-
-
-            #kyc upload view
 # from rest_framework.parsers import MultiPartParser, FormParser
 class UploadIDImageView(APIView):
     permission_classes = [IsAuthenticated]
@@ -234,40 +221,9 @@ class UploadIDImageView(APIView):
 
         return Response({"message": "ID images uploaded successfully"}, status=200)
 
-# smartdlupload
-class UploadSmartDLView(APIView):
-    permission_classes = [IsAuthenticated]
 
-    def post(self, request):
-        user = request.user
-        smart_dl = request.FILES.get("smart_dl")
-
-        if smart_dl:
-            user.save_license_copy(smart_dl)
-
-        return Response({"message": "Smart DL uploaded successfully"}, status=200)
-
-
-# class KYCUploadView(APIView):
-#     permission_classes = [IsAuthenticated]
-#     parser_classes = (MultiPartParser, FormParser)
-
-#     def post(self, request):
-#         user = request.user
-#         if not user.is_driver:
-#             return Response({"error": "Access denied. Not a driver."}, status=403)
-
-#         file = request.FILES.get("id_verification")
-#         if not file:
-#             return Response({"error": "No file uploaded."}, status=400)
-
-#         user.id_verification = file
-#         user.save()
-#         return Response({"message": "KYC document uploaded successfully. Pending approval."})
-        #wallet balance and payout request
-from django.db import transaction
-"""to be deleted"""
 class WalletBalanceView(APIView):
+    """still used for driver wallet ballance"""
     permission_classes = [IsAuthenticated]
 
     def get(self, request):
@@ -277,28 +233,7 @@ class WalletBalanceView(APIView):
 
         return Response({"wallet_balance": user.wallet_balance})
     
-"""to be deleted..........."""
-class PayoutRequestView(APIView):
-    permission_classes = [IsAuthenticated]
 
-    def post(self, request):
-        user = request.user
-        amount = request.data.get("amount")
-
-        if not user.is_driver:
-            return Response({"error": "Access denied. Not a driver."}, status=403)
-
-        if amount is None or float(amount) <= 0:
-            return Response({"error": "Invalid payout amount."}, status=400)
-
-        if user.wallet_balance < float(amount):
-            return Response({"error": "Insufficient balance."}, status=400)
-
-        with transaction.atomic():
-            user.wallet_balance -= float(amount)
-            user.save()
-
-        return Response({"message": "Payout request successful. Processing..."})
     # Toggle online status
     """to be deleted    ........."""
 class DriverAvailabilityView(APIView):
@@ -328,8 +263,8 @@ class OptimizeRouteView(APIView):
         current_location = request.data.get('currentLocation')
         ride_id = request.data.get('ride_id')
 
-        print(f"Received optimize route data: {request.data}")
-        print(f"Current location: {current_location}")
+        logger.info(f"Received optimize route data: {request.data}")
+        logger.info(f"Current location: {current_location}")
 
         if not current_location or not ride_id:
             return Response(
@@ -354,13 +289,13 @@ class OptimizeRouteView(APIView):
 
             # Get accepted ride requests
             accepted_requests = RideRequest.objects.filter(ride=ride, status='accepted')
-            print(f"Accepted requests: {list(accepted_requests.values('pickup_location'))}")
+            logger.info(f"Accepted requests: {list(accepted_requests.values('pickup_location'))}")
 
             # Validate coordinates
             lat_lng_pattern = re.compile(r'^-?\d+\.\d+,-?\d+\.\d+$')
             try:
                 origin = f"{current_location['latitude']},{current_location['longitude']}"
-                print(f"Origin: {origin}")
+                logger.info(f"Origin: {origin}")
             except (KeyError, TypeError):
                 return Response(
                     {'error': 'Invalid current location format (must include latitude, longitude)'},
@@ -374,7 +309,7 @@ class OptimizeRouteView(APIView):
 
             try:
                 destination = f"{ride.destination['lat']},{ride.destination['lng']}"
-                print(f"Destination: {destination}")
+                logger.info(f"Destination: {destination}")
             except (KeyError, TypeError):
                 return Response(
                     {'error': 'Invalid destination format (must include lat, lng)'},
@@ -390,7 +325,7 @@ class OptimizeRouteView(APIView):
             waypoints = []
             for req in accepted_requests:
                 pickup = req.pickup_location
-                print(f"Pickup location for request {req.ridrequest_id}: {pickup}")
+                logger.info(f"Pickup location for request {req.ridrequest_id}: {pickup}")
                 if not isinstance(pickup, dict):
                     return Response(
                         {'error': f"Invalid pickup location format for request {req.ridrequest_id} (must be a JSON object)"},
@@ -409,7 +344,7 @@ class OptimizeRouteView(APIView):
                     )
                 waypoints.append(waypoint)
             waypoints_str = '|'.join(waypoints) if waypoints else ''
-            print(f"Waypoints: {waypoints_str}")
+            logger.info(f"Waypoints: {waypoints_str}")
 
             # Google Maps Directions API request
             url = 'https://maps.googleapis.com/maps/api/directions/json'
@@ -427,7 +362,7 @@ class OptimizeRouteView(APIView):
             response = requests.get(url, params=params)
             response.raise_for_status()
             data = response.json()
-            print(f"Directions API response: {data}")
+            logger.info(f"Directions API response: {data}")
 
             if data.get('status') == 'NOT_FOUND':
                 return Response(
@@ -482,25 +417,76 @@ class OptimizeRouteView(APIView):
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR
             )
 
+
 from channels.layers import get_channel_layer
 from asgiref.sync import async_to_sync
 from django.contrib.auth import get_user_model
 from Taxi.firebase import send_push_notification
+from .models import Notification
+from django.utils import timezone
+from datetime import timedelta
 
 User = get_user_model()
 
 class SendNotificationView(APIView):
     permission_classes = [IsAuthenticated]
+
     def post(self, request):
         user_id = request.data.get("user_id")
         message = request.data.get("message")
         carpoolride_id = request.data.get("carpoolride_id")
 
-        if not user_id or not message:
-            return Response({"error": "user_id and message are required"}, status=400)
+        if not user_id or not message or not carpoolride_id:
+            return Response({"error": "user_id, message, and carpoolride_id are required"}, status=status.HTTP_400_BAD_REQUEST)
+
+        try:
+            user = User.objects.get(id=user_id)
+        except User.DoesNotExist:
+            return Response({"error": "User not found"}, status=status.HTTP_404_NOT_FOUND)
+
+        # Check for existing notifications within the last 5 minutes
+        five_minutes_ago = timezone.now() - timedelta(minutes=5)
+        existing_notification = Notification.objects.filter(
+            user=user,
+            carpoolride_id=carpoolride_id,
+            created_at__gte=five_minutes_ago
+        ).first()
+
+        if existing_notification:
+            if existing_notification.is_new:
+                return Response({
+                    "status": "Notification already sent and pending within 5 minutes",
+                    "notification_id": existing_notification.notification_id,
+                    "is_updated": False
+                }, status=status.HTTP_200_OK)
+            if not existing_notification.is_new:
+                # Skip if dismissed, don't re-create or send
+                return Response({
+                    "status": "Notification already dismissed, not re-sending",
+                    "notification_id": existing_notification.notification_id,
+                    "is_updated": False
+                }, status=status.HTTP_200_OK)
+            # Update existing notification if dismissed (optional, remove if not needed)
+            existing_notification.message = message
+            existing_notification.is_new = True
+            existing_notification.created_at = timezone.now()
+            existing_notification.save()
+            notification = existing_notification
+            is_updated = True
+        else:
+            # Create new notification
+            notification = Notification.objects.create(
+                user=user,
+                carpoolride_id=carpoolride_id,
+                message=message,
+                type="request",
+                is_new=True
+            )
+            is_updated = False
 
         group_name = f"user_{user_id}"
         channel_layer = get_channel_layer()
+        websocket_sent = False
 
         # Try WebSocket push
         try:
@@ -508,233 +494,36 @@ class SendNotificationView(APIView):
                 group_name,
                 {
                     "type": "send_notification",
+                    "user_id": user_id,
                     "message": message,
                     "carpoolride_id": carpoolride_id,
+                    "notification_id": str(notification.notification_id),
                 }
             )
             websocket_sent = True
         except Exception as e:
             print(f"WebSocket send error for user {user_id}: {e}")
-            websocket_sent = False
 
         # Fallback to Firebase
         try:
-            user = User.objects.get(id=user_id)
-            fcm_token = getattr(user, "fcm_token", None)  # adjust field name if needed
+            fcm_token = getattr(user, "fcm_token", None)
             if fcm_token:
                 send_push_notification(
                     token=fcm_token,
                     title="Ride Notification",
                     body=message
                 )
-        except User.DoesNotExist:
-            print(f"User {user_id} not found. Firebase push skipped.")
         except Exception as e:
             print(f"Error sending Firebase notification: {e}")
 
         return Response({
-            "status": "Notification sent via WebSocket" if websocket_sent else "Firebase fallback used"
-        }, status=200)
+            "status": "Notification sent via WebSocket" if websocket_sent else "Firebase fallback used",
+            "notification_id": notification.notification_id,
+            "is_updated": is_updated
+        }, status=status.HTTP_200_OK)
 
 
-
-# class OptimizeRouteView(APIView):
-#     permission_classes = [IsAuthenticated]
-
-#     def post(self, request):
-#         current_location = request.data.get('currentLocation')
-#         ride_id = request.data.get('ride_id')
-#         print(f"received optimize route date:{request.data}")
-#         # print(f"Received optimize route data:{request.data})
-
-#         if not current_location or not ride_id:
-#             return Response({'error': 'Current location and ride ID are required'}, status=status.HTTP_400_BAD_REQUEST)
-
-#         try:
-#             # Validate ride and driver
-#             ride = CarpoolRide.objects.get(carpoolride_id=ride_id, driver=request.user)
-#             if ride.status != 'in_progress':
-#                 return Response({'error': 'Ride must be in progress'}, status=status.HTTP_400_BAD_REQUEST)
-
-#             # Check passenger limit based on vehicle capacity
-#             # vehicle = ride.vehicle
-#             # if not vehicle:
-#             #     return Response({'error': 'No vehicle assigned to ride'}, status=status.HTTP_400_BAD_REQUEST)
-#             accepted_requests = RideRequest.objects.filter(ride=ride, status='accepted')
-#             print(f"Accepted requests pickup values: {list(accepted_requests.values('pickup_location'))}")
-#             # if len(accepted_requests) > vehicle.capacity:
-#             #     return Response({'error': f'Maximum of {vehicle.capacity} passengers allowed'}, status=status.HTTP_400_BAD_REQUEST)
-
-#             # Validate coordinates
-#             lat_lng_pattern = re.compile(r'^-?\d+\.\d+,-?\d+\.\d+$')
-#             origin = f"{current_location['latitude']},{current_location['longitude']}"
-#             print(f"Origin: {origin}")
-#             if not lat_lng_pattern.match(origin):
-#                 return Response({'error': 'Invalid current location format'}, status=status.HTTP_400_BAD_REQUEST)
-
-#             destination = f"{ride.destination['lat']},{ride.destination['lng']}"
-#             print(f"Destination=: {destination}")
-#             if not lat_lng_pattern.match(destination):
-#                 return Response({'error': 'Invalid destination format'}, status=status.HTTP_400_BAD_REQUEST)
-
-#             # Get passenger pickup locations
-#             waypoints = []
-#             for req in accepted_requests:
-#                 pickup = req.pickup_location
-#                 logger.debug(f"Pickup location for request {req.ridrequest_id}: {pickup}")
-#                 if not isinstance(pickup, dict):
-#                     return Response(
-#                         {'error': f"Invalid pickup location format for request {req.ridrequest_id} (must be a JSON object)"},
-#                         status=status.HTTP_400_BAD_REQUEST
-#                     )
-#                 if not all(key in pickup for key in ['lat', 'lng']):
-#                     return Response(
-#                         {'error': f"Pickup location missing lat/lng for request {req.ridrequest_id}"},
-#                         status=status.HTTP_400_BAD_REQUEST
-#                     )
-#                 waypoint = f"{pickup['lat']},{pickup['lng']}"
-#                 if not lat_lng_pattern.match(waypoint):
-#                     return Response(
-#                         {'error': f"Invalid waypoint coordinates for request {req.ridrequest_id}"},
-#                         status=status.HTTP_400_BAD_REQUEST
-#                     )
-#                 waypoints.append(waypoint)
-#             waypoints_str = '|'.join(waypoints) if waypoints else ''
-#             # logger.debug(f"Waypoints: {waypoints_str}")
-#             print(f"Waypoints: {waypoints_str}")
-#             # waypoints = '|'.join(
-#             #     [f"{req.pickup_location['lat']},{req.pickup_location['lng']}" for req in accepted_requests]
-#             # )
-#             # for waypoint in waypoints.split('|'):
-#             #     if waypoint and not lat_lng_pattern.match(waypoint):
-#             #         return Response({'error': 'Invalid waypoint format'}, status=status.HTTP_400_BAD_REQUEST)
-
-#             # Update driver's location
-#             UserLocation.objects.update_or_create(
-#                 user=request.user,
-#                 ride=ride,
-#                 defaults={'latitude': current_location['latitude'], 'longitude': current_location['longitude']}
-#             )
-
-#             # Google Maps Directions API request
-#             url = 'https://maps.googleapis.com/maps/api/directions/json'
-#             params = {
-#                 'origin': origin,
-#                 'destination': destination,
-#                 'waypoints': f'optimize:true|{waypoints}' if waypoints else '',
-#                 'key': settings.GOOGLE_MAPS_API_KEY,
-#             }
-#             # Log the full API URL
-#             api_url = f"{url}?{urlencode(params)}"
-#             print(f"Directions API request URL: {api_url}")
-#             print(f"Directions API request params: {params}")
-#             response = requests.get(url, params=params)
-#             response.raise_for_status()
-#             data = response.json()
-#             print(f"Directions API response: {data}")
             
-#             if data.get('status') == 'NOT_FOUND':
-#                 return Response(
-#                     {'error': 'No route found. Check origin, waypoints, or destination coordinates.'},
-#                     status=status.HTTP_400_BAD_REQUEST)
-
-#             if data.get('status') != 'OK':
-#                 return Response({'error': f"Directions API error: {data.get('status')}"}, status=status.HTTP_400_BAD_REQUEST)
-
-#             # Include passenger data
-#             passenger_data = [
-#                 {
-#                     'user_id': req.passenger.id,
-#                     'pickup_lat': req.pickup_location['lat'],
-#                     'pickup_lng': req.pickup_location['lng'],
-#                     'label': req.pickup_location['label'],
-#                     'name': req.passenger.fullname,
-#                 }
-#                 for req in accepted_requests
-#             ]
-
-#             return Response({
-#                 'status': data.get('status'),
-#                 'optimized_order': data.get('routes', [{}])[0].get('waypoint_order', []),
-#                 'route': data.get('routes', [{}])[0],
-#                 'passengers': passenger_data,
-#                 'ride_id': str(ride.carpoolride_id),
-#             })
-#         except CarpoolRide.DoesNotExist:
-#             return Response({'error': 'Ride not found or not authorized'}, status=status.HTTP_404_NOT_FOUND)
-#         except requests.RequestException as e:
-#             return Response({'error': f'Failed to optimize route: {str(e)}'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
-#         except KeyError as e:
-#             return Response({'error': f'Missing required field: {str(e)}'}, status=status.HTTP_400_BAD_REQUEST)
-
-
-
-
-# class OptimizeRouteView(APIView):
-#     """FOR THE DRIVERS VIEWS TO OPTIMIZE ROUTES"""
-#     permission_classes = [IsAuthenticated]
-
-#     def post(self, request):
-#         current_location = request.data.get("currentLocation")
-#         # print(f"this is the current location: {current_location}")
-#         rides = request.data.get("rides")
-        
-#         # print(f"this is the request data in optimizedroutview: {request.data}")
-
-#         # if not current_location or not rides:
-#         # if not rides:
-#         # if not current_location:
-#         if not current_location or not rides:
-#             return Response({"error": "Current location and rides data are required."}, status=400)
-#         try:
-#             # Prepare data for Google Maps Route Optimization API
-#             api_key = settings.GOOGLE_MAPS_API_KEY  # Store in settings.py
-#             url = "https://maps.googleapis.com/maps/api/directions/json"
-
-#             origin = f"{current_location['latitude']},{current_location['longitude']}"
-#             destination = f"{rides[0]['destination']['lat']},{rides[0]['destination']['lng']}"
-
-#             waypoints = "|".join(
-#                     [f"{ride['origin']['lat']},{ride['origin']['lng']}" for ride in rides]
-#                 )
-#             params = {
-#                     "origin": origin,
-#                     "destination": destination,
-#                     "waypoints": f"optimize:true|{waypoints}",
-#                     "key": api_key
-#                 }
-#             response = requests.get(url, params=params)
-#             response.raise_for_status()
-#             data = response.json()
-#             return Response({
-#                     "status": data.get("status"),
-#                     "optimized_order": data.get("routes", [{}])[0].get("waypoint_order", []),
-#                     "route": data.get("routes", [{}])[0]
-#                 })
-#         except requests.RequestException as e:
-#             return Response({"error": f"Failed to optimize route: {str(e)}"}, status=500)
-            
-from django.http import HttpResponse
-import requests
-
-def google_maps_tile(request, z, x, y):
-    api_key = settings.GOOGLE_MAPS_API_KEY  # Securely stored in settings.py
-    url = f"https://www.google.com/maps/vt?lyrs=m@189&x={x}&y={y}&z={z}&key={api_key}"
-    response = requests.get(url)
-    return HttpResponse(response.content, content_type="image/png")
-
-        # try:
-        #     response = requests.post(
-        #         url,
-        #         headers={"Content-Type": "application/json"},
-        #         json=request_body,
-        #         params={"key": api_key}
-        #     )
-        #     response.raise_for_status()
-        #     data = response.json()
-        #     return Response({"route": data.get("routes", [{}])[0]})
-        # except requests.RequestException as e:
-        #     return Response({"error": f"Failed to optimize route: {str(e)}"}, status=500)
 
 from .serializers import RideRequestSerializer, CarpoolRideSerializer
 from rest_framework.generics import UpdateAPIView
@@ -743,40 +532,7 @@ from rest_framework.response import Response
 from rest_framework import serializers
 from .models import RideRequest, CarpoolRide
 # from .serializers import RideRequestSerializer
-from Taxi.utils import notify_user  # Import notification system
-"""to be deleted no ride requests are made by passengers"""
-class ApproveRideRequestView(UpdateAPIView):
-    """to be deleted no ride requests are made by passengers"""
-    serializer_class = RideRequestSerializer
-    permission_classes = [IsAuthenticated]
-
-    def get_queryset(self):
-        """Retrieve pending ride requests for the authenticated driver."""
-        return RideRequest.objects.filter(ride__driver=self.request.user, status="pending")
-
-    def perform_update(self, serializer):
-        ride_request = self.get_object()
-        ride = ride_request.ride
-
-        # Ensure the ride is not full
-        if ride.available_seats > 0:
-            serializer.save(status="accepted")
-            ride.available_seats -= 1
-            ride.save()
-
-            # Notify the passenger that their ride request was accepted
-            message = f"Your ride request for {ride.pickup_location} has been accepted!"
-            notify_user(ride_request.passenger, message)
-
-            # If no more seats are available, mark ride as full
-            if ride.available_seats == 0:
-                ride.is_full = True
-                ride.save()
-
-            return Response({"message": "Ride request accepted and passenger notified."})
-        
-        else:
-            raise serializers.ValidationError("No seats available.")
+from Taxi.utils import notify_user  # Import notification syste
 
 """this is themain one for drivers to allow passengers to join their carpool"""
 from rest_framework import status, generics
@@ -787,170 +543,206 @@ from .serializers import RideRequestSerializer
 
 class AcceptRideRequestView(UpdateAPIView):
     """View to allow a driver to accept a ride request.
-    --Ensures only the driver can accept requests.
-    --Prevents overbooking (if available_seats is too low, it rejects the request).
-    --Updates the ride request status to "accepted".
-    --Reduces available_seats by the number of seats requested.
-    """
+     --Ensures only the driver can accept requests.
+     --Prevents overbooking (if available_seats is too low, it rejects the request).
+     --Updates the ride request status to "accepted".
+     --Reduces available_seats by the number of seats requested.
+     """
+    
     queryset = RideRequest.objects.all()
     serializer_class = RideRequestSerializer
     permission_classes = [IsAuthenticated]
 
     def update(self, request, *args, **kwargs):
         ride_request = self.get_object()
-        
-        # Ensure only the ride's driver can accept requests
+
         if ride_request.ride.driver != request.user:
             return Response({"error": "Only the ride driver can accept requests."}, status=status.HTTP_403_FORBIDDEN)
 
-        # Ensure there are enough seats available before accepting
         if ride_request.seats_requested > ride_request.ride.available_seats:
             return Response(
                 {"error": f"Not enough available seats. Only {ride_request.ride.available_seats} left."},
                 status=status.HTTP_400_BAD_REQUEST
             )
+
         passenger_wallet = UserWallet.objects.get(user=ride_request.passenger)
-        fare = ride_request.ride.fare
+        driver = ride_request.ride.driver
+        driver_wallet, _ = UserWallet.objects.get_or_create(user=driver)
+
+        # Calculate total fare
+        fare = ride_request.ride.contribution_per_seat * ride_request.seats_requested
 
         if passenger_wallet.balance < fare:
             return Response({"error": "Passenger has insufficient balance."},
                             status=status.HTTP_400_BAD_REQUEST)
 
-        # Deduct and hold in escrow
-        passenger_wallet.balance -= fare
-        passenger_wallet.save()
+        # Move funds to escrow
+        if passenger_wallet.hold_in_escrow(fare):
+            # Create transaction record
+            WalletTransaction.objects.create(
+                user=ride_request.passenger,
+                recipient=driver,
+                amount=fare,
+                transaction_type="escrow_hold",
+                status="completed",
+                reference=f"RID-{get_random_string(8)}",
+                sender_name=ride_request.passenger.fullname,
+                sender_phone=ride_request.passenger.phone_number,
+                recipient_name=driver.fullname,
+                recipient_phone=driver.phone_number
+                # ride=ride # link payment with ride
+            )
 
-        WalletTransaction.objects.create(
-            user=ride_request.passenger,
-            amount=fare,
-            transaction_type="ride_payment",
-            status="escrow_hold",
-            reference=f"RID-{get_random_string(8)}"
-        )
-        # Mark the request as accepted
-        ride_request.status = "accepted"
-        ride_request.save()
-        
-        # # Notify the passenger that their ride request was accepted
-        # message = f"Your ride request for {ride.pickup_location} has been accepted!"
-        # notify_user(ride_request.passenger, message)
+            ride_request.status = "accepted"
+            ride_request.payment_status = "paid"
+            ride_request.save()
 
-        # Reduce available seats
-        ride_request.ride.available_seats -= ride_request.seats_requested
-        ride_request.ride.save()
+            ride_request.ride.available_seats -= ride_request.seats_requested
+            ride_request.ride.save()
+            # Generate Booking Confirmation
+            subject = "Booking Confirmation"
+            message = (
+                f"<h3>Ride Booking Confirmed</h3>"
+                f"<p><strong>Ride ID:</strong> {ride_request.ride.carpoolride_id}</p>"
+                f"<p><strong>Passenger:</strong> {ride_request.passenger.fullname}</p>"
+                f"<p><strong>Driver:</strong> {ride_request.ride.driver.fullname}</p>"
+                f"<p><strong>Origin:</strong> {ride_request.ride.origin['label']}</p>"
+                f"<p><strong>Destination:</strong> {ride_request.ride.destination['label']}</p>"
+                f"<p><strong>Departure Time:</strong> {ride_request.ride.departure_time}</p>"
+                f"<p><strong>Seats Booked:</strong> {ride_request.seats_requested}</p>"
+                f"<p><strong>Fare:</strong> KES {fare}</p>"
+                f"<p><strong>Booking Time:</strong> {timezone.now().strftime('%Y-%m-%d %H:%M:%S')}</p>"
+            )
 
-        return Response({"message": "Ride request accepted successfully."}, status=status.HTTP_200_OK)
+            # Render templates
+            context = {
+                'subject': subject,
+                'user_name': ride_request.passenger.first_name,
+                'message': message,
+                'year': timezone.now().year,
+            }
+            text_content = render_to_string('emails/base_email.txt', context)
+            html_content = render_to_string('emails/base_email.html', context)
 
+            # Send email
+            email = EmailMultiAlternatives(
+                subject=subject,
+                body=text_content,
+                from_email=f"DukeRides <{settings.DEFAULT_FROM_EMAIL}>", 
+                # from_email=settings.DEFAULT_FROM_EMAIL,
+                to=[ride_request.passenger.email],
+            )
+            email.attach_alternative(html_content, "text/html")
+            try:
+                email.send()
+                logger.info(f"Booking confirmation email sent to {ride_request.passenger.email}")
+            except Exception as e:
+                logger.error(f"Failed to send booking confirmation email: {str(e)}")
+            # Send push notification
+            try:
+                fcm_token = getattr(ride_request.passenger, "fcm_token", None)
+                if fcm_token:
+                    from .utils import send_push_notification
+                    send_push_notification(
+                        token=fcm_token,
+                        title="Booking Confirmed",
+                        body=f"Your ride from {ride_request.ride.origin['label']} is confirmed!"
+                    )
+                    logger.info(f"Booking confirmation push notification sent to {ride_request.passenger.id}")
+            except Exception as e:
+                logger.error(f"Failed to send push notification: {str(e)}")
+
+            return Response({"message": "Ride request accepted and fare held in escrow."}, status=status.HTTP_200_OK)
+        else:
+            return Response({"error": "Failed to hold funds in escrow."}, status=status.HTTP_400_BAD_REQUEST)
 
 
 
 
 # drivers to reject ride if they want to do so:
-"""to be deleted no ride requests are made by passengers"""
-class RejectRideRequestView(UpdateAPIView):
-    """View for a driver to decline a ride request."""
-    queryset = RideRequest.objects.all()
-    permission_classes = [IsAuthenticated]
-
-    def update(self, request, *args, **kwargs):
-        ride_request = self.get_object()
-
-        # Ensure only the driver of the ride can reject requests
-        if ride_request.ride.driver != request.user:
-            return Response({"error": "Only the ride driver can reject requests."}, status=status.HTTP_403_FORBIDDEN)
-
-        # Prevent modifying a request that was already accepted or declined
-        if ride_request.status in ["accepted", "declined"]:
-            return Response({"error": "This request has already been processed."}, status=status.HTTP_400_BAD_REQUEST)
-
-        # Mark the request as declined
-        ride_request.status = "declined"
-        ride_request.save()
-        
-        #  # Notify the passenger
-        # message = f"Your ride request for {ride_request.ride.pickup_location} has been declined!"
-        # notify_user(ride_request.passenger, message)
-
-
-        return Response({"message": "Ride request declined."}, status=status.HTTP_200_OK)
 
 """this is the main to allow drivers to decline passengers to join their carpool"""
 from rest_framework import status, generics
 from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated
 from .models import RideRequest
+import logging
+
+logger = logging.getLogger(__name__)
 
 class DeclineRideRequestView(generics.UpdateAPIView):
     """View for a driver to decline a ride request.
     --Ensures only the ride's driver can reject a request.
     --Prevents modifying a request that was already accepted or declined.
-    --Updates the request status to "declined".
+    --Updates the request status to 'declined'.
+    --Notifies the passenger via WebSocket.
     """
     queryset = RideRequest.objects.all()
     permission_classes = [IsAuthenticated]
 
     def update(self, request, *args, **kwargs):
-        ride_request = self.get_object()
+        try:
+            ride_request = self.get_object()
+        except RideRequest.DoesNotExist:
+            logger.warning(f"Ride request {kwargs.get('pk')} not found")
+            return Response({"error": "Ride request not found."}, status=status.HTTP_404_NOT_FOUND)
 
         # Ensure only the driver of the ride can reject requests
         if ride_request.ride.driver != request.user:
+            logger.warning(f"User {request.user.id} attempted to decline request {ride_request.ridrequest_id} without permission")
             return Response({"error": "Only the ride driver can reject requests."}, status=status.HTTP_403_FORBIDDEN)
 
         # Prevent modifying a request that was already accepted or declined
         if ride_request.status in ["accepted", "declined"]:
+            logger.warning(f"Ride request {ride_request.ridrequest_id} already processed with status {ride_request.status}")
             return Response({"error": "This request has already been processed."}, status=status.HTTP_400_BAD_REQUEST)
 
         # Mark the request as declined
         ride_request.status = "declined"
         ride_request.save()
-        
-        #   # Notify the passenger
-        # message = f"Your ride request for {ride_request.ride.pickup_location} has been declined!"
-        # notify_user(ride_request.passenger, message)
+        logger.info(f"Ride request {ride_request.ridrequest_id} declined by driver {request.user.id}")
+
+        # Notify the passenger
+        notification = Notification.objects.create(
+            user=ride_request.passenger,
+            message=f"Your ride request for ride {ride_request.ride.carpoolride_id} has been declined by the driver.",
+            carpoolride_id=str(ride_request.ride.carpoolride_id),
+            type="declined",
+            is_new=True
+        )
+        channel_layer = get_channel_layer()
+        try:
+            async_to_sync(channel_layer.group_send)(
+                f"user_{ride_request.passenger.id}",
+                {
+                    "type": "send_notification",
+                    "user_id": str(ride_request.passenger.id),
+                    "message": notification.message,
+                    "carpoolride_id": str(ride_request.ride.carpoolride_id),
+                    "notification_id": str(notification.notification_id),
+                    "notification_type": "declined",
+                    "time": timezone.now().isoformat()
+                }
+            )
+            logger.info(f"WebSocket notification sent to passenger {ride_request.passenger.id} for ride {ride_request.ride.carpoolride_id}")
+        except Exception as e:
+            logger.error(f"WebSocket notification failed for passenger {ride_request.passenger.id}: {str(e)}")
+            # Fallback to Firebase (optional)
+            try:
+                fcm_token = getattr(ride_request.passenger, "fcm_token", None)
+                if fcm_token:
+                    from .utils import send_push_notification
+                    send_push_notification(
+                        token=fcm_token,
+                        title="Ride Request Declined",
+                        body=notification.message
+                    )
+                    logger.info(f"Firebase notification sent to passenger {ride_request.passenger.id}")
+            except Exception as e:
+                logger.error(f"Firebase notification failed for passenger {ride_request.passenger.id}: {str(e)}")
 
         return Response({"message": "Ride request declined."}, status=status.HTTP_200_OK)
 
-
-# accept/reject ride requests
-# from .models import RideRequest
-
-# class AcceptRideView(APIView):
-#     permission_classes = [IsAuthenticated]
-
-#     def post(self, request, ride_id):
-#         user = request.user
-#         if not user.is_driver:
-#             return Response({"error": "Access denied. Not a driver."}, status=403)
-
-#         try:
-#             ride = RideRequest.objects.get(id=ride_id, status="pending")
-#         except RideRequest.DoesNotExist:
-#             return Response({"error": "Ride request not found or already taken."}, status=404)
-
-#         ride.driver = user
-#         ride.status = "accepted"
-#         ride.save()
-
-#         return Response({"message": "Ride accepted successfully."})
-
-
-# class RejectRideView(APIView):
-#     permission_classes = [IsAuthenticated]
-
-#     def post(self, request, ride_id):
-#         user = request.user
-#         if not user.is_driver:
-#             return Response({"error": "Access denied. Not a driver."}, status=403)
-
-#         try:
-#             ride = RideRequest.objects.get(id=ride_id, status="pending")
-#         except RideRequest.DoesNotExist:
-#             return Response({"error": "Ride request not found or already taken."}, status=404)
-
-#         ride.status = "rejected"
-#         ride.save()
-
-#         return Response({"message": "Ride rejected successfully."})
 
 
         
@@ -958,7 +750,7 @@ class DeclineRideRequestView(generics.UpdateAPIView):
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated
-from .models import DriverLocation
+# from .models import DriverLocation
 
 from geopy.distance import geodesic
 from rest_framework.response import Response
@@ -970,7 +762,7 @@ from .utils import notify_user
 
 class UpdateDriverLocationView(APIView):
     permission_classes = [IsAuthenticated]
-
+    """where driver location is updated"""
     def post(self, request):
         user = request.user
         latitude = request.data.get("latitude")
@@ -1021,136 +813,20 @@ class UpdateDriverLocationView(APIView):
                 if distance < 0.5:
                     message = f"Your ride is approaching! Get ready for pickup at {ride_request.pickup_location['label']}."
                     notify_user(ride_request.passenger, message)
+                    print(f'ride request passenger being called is: {ride_request.passenger}')
                     print(f"Sent notification to passenger {ride_request.passenger.id} for ride {ride_id}")
 
         return Response({
             "message": "Driver location updated successfully.",
             "is_simulated": is_simulated
         })
-# class UpdateDriverLocationView(APIView):
-#     permission_classes = [IsAuthenticated]
-
-#     def post(self, request):
-#         user = request.user
-#         latitude = request.data.get("latitude")
-#         longitude = request.data.get("longitude")
-#         ride_id = request.data.get("ride_id")
-
-#         print(f"Received location update request: user={user.id}, ride_id={ride_id}, lat={latitude}, lng={longitude}")
-
-#         if not latitude or not longitude or not ride_id:
-#             print("Missing required fields")
-#             return Response({"error": "Latitude, longitude, and ride_id are required."}, status=400)
-
-#         try:
-#             ride = CarpoolRide.objects.get(
-#                 carpoolride_id=ride_id,
-#                 driver=user,
-#                 status="in_progress"
-#             )
-#         except CarpoolRide.DoesNotExist:
-#             print(f"No active ride found for user={user.id}, ride_id={ride_id}")
-#             return Response({"error": "You are not assigned to an active ride with this ID."}, status=403)
-
-#         # Update or create location
-#         try:
-#             location, created = UserLocation.objects.update_or_create(
-#                 user=user,
-#                 ride=ride,
-#                 defaults={"latitude": latitude, "longitude": longitude}
-#             )
-#             action = "created" if created else "updated"
-#             print(f"UserLocation {action}: user={user.id}, ride_id={ride_id}, lat={latitude}, lng={longitude}, updated_at={location.updated_at}")
-#         except Exception as e:
-#             print(f"Error updating UserLocation: user={user.id}, ride_id={ride_id}, error={str(e)}")
-#             return Response({"error": "Failed to update location."}, status=500)
-
-#         # Notify passengers if driver is near
-#         for ride_request in RideRequest.objects.filter(ride=ride, status="accepted"):
-#             pickup_coords = (ride_request.pickup_location["lat"], ride_request.pickup_location["lng"])
-#             driver_coords = (float(latitude), float(longitude))
-#             distance = geodesic(driver_coords, pickup_coords).km
-#             print(f"Distance to passenger {ride_request.passenger.id}: {distance} km")
-#             if distance < 0.5:
-#                 message = f"Your ride is approaching! Get ready for pickup at {ride_request.pickup_location['label']}."
-#                 notify_user(ride_request.passenger, message)
-#                 print(f"Sent notification to passenger {ride_request.passenger.id} for ride {ride_id}")
-
-#         return Response({"message": "Driver location updated successfully."})
-# class UpdateDriverLocationView(APIView):
-#     permission_classes = [IsAuthenticated]
-
-#     def post(self, request):
-#         user = request.user
-#         latitude = request.data.get("latitude")
-#         longitude = request.data.get("longitude")
-#         ride_id = request.data.get("ride_id")  # Optional, for linking to ride
-
-#         if not latitude or not longitude or not ride_id:
-#             return Response({"error": "Latitude and Longitude and ride_id are required."}, status=400)
-
-#         # Ensure the driver is part of an active ride
-#         active_rides = CarpoolRide.objects.filter(driver=user, is_completed=False)
-#         if not active_rides.exists():
-#             return Response({"error": "You are not assigned to an active ride."}, status=403)
-
-#         # Update or create location
-#         location, created = UserLocation.objects.update_or_create(
-#             driver=user, defaults={
-#                 "latitude": latitude, 
-#                 "longitude": longitude,
-#                 "ride": active_rides }
-#         )
-
-#         # Notify passengers if the driver is near their pickup point
-#         for ride in active_rides:
-#             for ride_request in RideRequest.objects.filter(ride=ride, status="accepted"):
-#                 pickup_coords = (ride_request.ride.pickup_lat, ride_request.ride.pickup_lng)
-#                 driver_coords = (float(latitude), float(longitude))
-
-#                 distance = geodesic(driver_coords, pickup_coords).km
-#                 if distance < 0.5:  # Notify if driver is within 500 meters
-#                     message = f"Your ride is approaching! Get ready for pickup at {ride_request.ride.pickup_location}."
-#                     notify_user(ride_request.passenger, message)
-
-#         return Response({"message": "Driver location updated successfully."})
-
+        
 #passengers view to see drivers location
 from rest_framework.generics import RetrieveAPIView
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
-from .models import DriverLocation, RideRequest, CarpoolRide
+from .models import RideRequest, CarpoolRide
 
-# class GetDriverLocationView(RetrieveAPIView):
-#     permission_classes = [IsAuthenticated]
-
-#     def get(self, request, ride_id):
-#         """Fetch the driver's latest location for a specific ride, only for accepted passengers."""
-#         user = request.user
-
-#         # Check if the ride exists
-#         try:
-#             ride = CarpoolRide.objects.get(id=ride_id)
-#         except CarpoolRide.DoesNotExist:
-#             return Response({"error": "Ride not found."}, status=404)
-
-#         # Ensure the user has an accepted request for this ride
-#         is_accepted_passenger = RideRequest.objects.filter(
-#             ride=ride, passenger=user, status="accepted"
-#         ).exists()
-
-#         if not is_accepted_passenger:
-#             return Response({"error": "You are not authorized to view this location."}, status=403)
-
-#         # Get the driver's latest location
-#         try:
-#             location = DriverLocation.objects.get(driver=ride.driver)
-#             return Response({
-#                 "latitude": location.latitude,
-#                 "longitude": location.longitude
-#             })
-#         except DriverLocation.DoesNotExist:
-#             return Response({"error": "Driver location not found."}, status=404)
 
 """notify passenger when ride starts
     start_ride and complete_ride to use 
@@ -1176,367 +852,13 @@ class StartRideView(APIView):
         except CarpoolRide.DoesNotExist:
             return Response({"error": "Ride not found or you are not the driver."}, status=status.HTTP_404_NOT_FOUND)
 
-class CompleteRideView(APIView):
-    """Driver completes the ride — triggers escrow release and notifications."""
-    permission_classes = [IsAuthenticated]
-
-    def patch(self, request, ride_id):
-        try:
-            ride = CarpoolRide.objects.get(carpoolride_id=ride_id, driver=request.user)
-        except CarpoolRide.DoesNotExist:
-            return Response({"error": "Ride not found or unauthorized."}, status=404)
-
-        if ride.status != "in_progress":
-            return Response({"error": "Only in-progress rides can be completed."}, status=400)
-
-        ride.status = "completed"
-        ride.save()
-
-        driver_wallet, _ = UserWallet.objects.get_or_create(user=ride.driver)
-        accepted_requests = RideRequest.objects.filter(ride=ride, status="accepted")
-
-        for req in accepted_requests:
-            fare = ride.fare
-            driver_wallet.balance += fare
-            driver_wallet.save()
-
-            WalletTransaction.objects.create(
-                user=ride.driver,
-                amount=fare,
-                transaction_type="escrow_release",
-                status="completed",
-                reference=f"PAYOUT-{get_random_string(10)}"
-            )
-
-            notify_user(
-                req.passenger,
-                f"Your ride from {req.pickup_location['label']} is complete. Thank you for using our service!",
-                carpoolride_id=str(ride.carpoolride_id)
-            )
-
-        return Response({"message": "Ride completed and driver paid."}, status=200)
-
-
-def start_ride(request, ride_id):
-    """Mark a ride as started and notify passengers."""
-    ride = CarpoolRide.objects.get(id=ride_id)
-    
-    # Update status
-    ride.status = "in_progress"
-    ride.save()
-
-    # Notify passengers
-    for ride_request in ride.requests.filter(status="accepted"):
-        message = f"Your ride from {ride.pickup_location} has started!"
-        notify_user(ride_request.passenger, message)
-
-    return Response({"message": "Ride started."})
-
-def complete_ride(request, ride_id):
-    """Mark a ride as completed and notify passengers."""
-    ride = CarpoolRide.objects.get(id=ride_id)
-    
-    # Update status
-    ride.status = "completed"
-    ride.save()
-
-    # Notify passengers
-    for ride_request in ride.requests.filter(status="accepted"):
-        message = f"Your ride from {ride.pickup_location} is complete. Thank you for using our service!"
-        notify_user(ride_request.passenger, message)
-
-    return Response({"message": "Ride completed."})
-
-# #notify passengers on driver's location
-# from .utils import send_notification
-# from .firebase import send_push_notification
-# """If users don't have the app open, we can use Firebase Cloud Messaging (FCM)."""
-# def notify_passenger(ride_request):
-#     """Notify passengers when driver is near pickup location."""
-#     message = f"Your ride is approaching! Get ready for pickup at {ride_request.ride.pickup_location}."
-     
-#      # WebSocket Notification (for real-time updates)
-#     send_notification(ride_request.passenger.id, message)
-    
-#     # Firebase Push Notification (for background alerts)
-#     send_push_notification(ride_request.passenger, message)
-
-
-# Passengers Search & Join Available Rides  
-# Since there are no real-time ride requests, passengers search for trips.
-"""to be deleted since carpool ride viewset handles even women-only rides"""
-class AvailableRidesView(ListAPIView):
-    pass
-
-
-
-# ADMIN
-
-from .utils import verify_national_id
-from rest_framework import status, generics
-from rest_framework.response import Response
-from rest_framework.permissions import IsAdminUser
-from .models import CustomUser
-# from .serializers import UserKYCSerializer
-
-
-from rest_framework import status, generics
-from rest_framework.response import Response
-from rest_framework.permissions import IsAdminUser
-from .models import CustomUser
-# from .serializers import UserKYCSerializer
-from .utils import verify_national_id  # Import our utility function
-
-"""to be deleted"""
-# class VerifyKYCView(generics.UpdateAPIView):
-#     """Admin can approve/reject KYC after ID verification via eCitizen."""
-#     queryset = CustomUser.objects.all()
-#     serializer_class = UserKYCSerializer
-#     permission_classes = [IsAdminUser]
-
-#     def update(self, request, *args, **kwargs):
-#         user = self.get_object()
-
-#         # Ensure National ID is provided
-#         if not user.national_id:
-#             return Response({"error": "User has not provided a National ID."}, status=status.HTTP_400_BAD_REQUEST)
-
-#         # Check National ID with eCitizen
-#         if not verify_national_id(user.national_id):
-#             return Response({"error": "National ID verification failed."}, status=status.HTTP_400_BAD_REQUEST)
-
-#         # Approve KYC if ID is valid
-#         user.is_verified = True
-#         user.save()
-
-#         return Response({"message": "KYC verification approved."}, status=status.HTTP_200_OK)
-
-from rest_framework import status, generics
-from rest_framework.response import Response
-from rest_framework.permissions import IsAdminUser
-from .models import CustomUser
-# from .serializers import DriverKYCSerializer
-from .utils import verify_driving_license  # Import utility function
-"""to be deleted verification of ntsa license to be handled differently"""
-# class VerifyDriverView(generics.UpdateAPIView):
-#     """Admin can approve/reject driver after NTSA license verification."""
-#     queryset = CustomUser.objects.all()
-#     serializer_class = DriverKYCSerializer
-#     # permission_classes = [IsAdminUser]
-#     permission_classes = [IsAuthenticated]
-    
-#     def update(self, request, *args, **kwargs):
-#         verification_result = verify_driving_license(request)
-
-#         if verification_result.get("error"):
-#             return Response({"error": verification_result["error"]}, status=status.HTTP_400_BAD_REQUEST)
-
-#         if verification_result["status"] == "failed":
-#             return Response({"error": "Driving License verification failed. Check logs for details."}, status=status.HTTP_400_BAD_REQUEST)
-
-#         # Approve driver
-#         request.user.is_driver = True
-#         request.user.is_verified = True
-#         request.user.save()
-
-#         return Response({"message": "Driver verification approved."}, status=status.HTTP_200_OK)
-
-    # def update(self, request, *args, **kwargs):
-    #     user = self.get_object()
-
-    #     # Ensure Driving License is provided
-    #     if not user.driving_license_number:
-    #         return Response({"error": "User has not provided a Driving License Number."}, status=status.HTTP_400_BAD_REQUEST)
-
-    #     # Check Driving License with NTSA
-    #     if not verify_driving_license(user.driving_license_number):
-    #         return Response({"error": "Driving License verification failed."}, status=status.HTTP_400_BAD_REQUEST)
-
-    #     # Approve as a verified driver
-    #     user.is_driver = True
-    #     user.is_verified = True  # Fully verified
-    #     user.save()
-
-    #     return Response({"message": "Driver verification approved."}, status=status.HTTP_200_OK)
-
-
-# resetting users' cooldown
-from rest_framework.views import APIView
-from rest_framework.response import Response
-from rest_framework import status, permissions
-from .models import CustomUser
-
-class AdminResetCooldownView(APIView):
-    permission_classes = [permissions.IsAdminUser]
-
-    def post(self, request, *args, **kwargs):
-        user_id = request.data.get("user_id")
-        try:
-            user = CustomUser.objects.get(id=user_id)
-            user.cooldown_until = None  # Reset cooldown
-            user.save()
-
-            return Response({"message": f"User {user.phone_number} cooldown reset."}, status=status.HTTP_200_OK)
-        except CustomUser.DoesNotExist:
-            return Response({"error": "User not found."}, status=status.HTTP_404_NOT_FOUND)
-
-
-
-"""official for submitting a dispute"""
-from rest_framework.views import APIView
-from rest_framework.response import Response
-from rest_framework.permissions import IsAuthenticated
-from .models import CarpoolRide, WalletTransaction, Dispute
-
-class SubmitDisputeView(APIView):
-    permission_classes = [IsAuthenticated]
-
-    def post(self, request):
-        user = request.user
-        ride_id = request.data.get("ride_id")
-        transaction_id = request.data.get("transaction_id")
-        reason = request.data.get("reason")
-
-        if not reason:
-            return Response({"error": "Reason for dispute is required."}, status=400)
-
-        ride = CarpoolRide.objects.filter(id=ride_id).first() if ride_id else None
-        transaction = WalletTransaction.objects.filter(id=transaction_id, user=user).first() if transaction_id else None
-
-        if not ride and not transaction:
-            return Response({"error": "Must provide a valid ride or transaction."}, status=400)
-
-        dispute = Dispute.objects.create(user=user, ride=ride, transaction=transaction, reason=reason)
-        return Response({"message": "Dispute submitted successfully!", "dispute_id": dispute.id}, status=201)
-
-
-
-
-
-"""Admins can approve a refund, reject a claim, or adjust balances."""
-from rest_framework.permissions import IsAdminUser
-from rest_framework.pagination import PageNumberPagination
-from rest_framework.permissions import IsAdminUser
-
-class ResolveDisputeView(APIView):
-    permission_classes = [IsAdminUser]
-    """official despute resolver"""
-
-    def post(self, request, dispute_id):
-        try:
-            dispute = Dispute.objects.get(id=dispute_id)
-        except Dispute.DoesNotExist:
-            return Response({"error": "Dispute not found"}, status=404)
-
-        resolution_notes = request.data.get("resolution_notes", "")
-        action = request.data.get("action")  # approve, reject, adjust
-
-        if action == "approve" and dispute.transaction:
-            with transaction.atomic():
-                wallet = UserWallet.objects.get(user=dispute.user)
-                wallet.balance += dispute.transaction.amount
-                wallet.save()
-                dispute.status = "resolved"
-                WalletTransaction.objects.create(
-                    user=dispute.user,
-                    amount=dispute.transaction.amount,
-                    transaction_type="dispute_refund",
-                    status="completed",
-                    reference=f"DISP-{dispute_id}",
-                )
-        elif action == "reject":
-            dispute.status = "rejected"
-        elif action == "adjust":
-            amount = Decimal(request.data.get("amount", 0))
-            if amount > 0:
-                with transaction.atomic():
-                    wallet = UserWallet.objects.get(user=dispute.user)
-                    wallet.balance += amount
-                    wallet.save()
-                    dispute.status = "resolved"
-                    WalletTransaction.objects.create(
-                        user=dispute.user,
-                        amount=amount,
-                        transaction_type="dispute_adjustment",
-                        status="completed",
-                        reference=f"ADJ-{dispute_id}",
-                    )
-            else:
-                return Response({"error": "Invalid adjustment amount"}, status=400)
-        else:
-            return Response({"error": "Invalid action"}, status=400)
-
-        dispute.resolution_notes = resolution_notes
-        dispute.save()
-        return Response({"message": "Dispute resolved successfully!"})
-
-class ResolveDisputeView(APIView):
-    """to be deleted"""
-    permission_classes = [IsAdminUser]
-
-    def post(self, request, dispute_id):
-        dispute = Dispute.objects.get(id=dispute_id)
-        resolution_notes = request.data.get("resolution_notes")
-        action = request.data.get("action")  # Approve, Reject, Adjust
-
-        if action == "approve":
-            # Refund user if valid
-            if dispute.transaction:
-                wallet = dispute.transaction.user.wallet
-                wallet.balance += dispute.transaction.amount  # Refund money
-                wallet.save()
-
-            dispute.status = "resolved"
-        elif action == "reject":
-            dispute.status = "rejected"
-        elif action == "adjust":
-            # Admin can manually adjust balances here if needed
-            pass
-        else:
-            return Response({"error": "Invalid action."}, status=400)
-
-        dispute.resolution_notes = resolution_notes
-        dispute.save()
-
-        return Response({"message": "Dispute resolved successfully!"})
-
-# class AllDisputesView(APIView):
-
-    """official""" 
-    class AllDisputesView(APIView):
-        permission_classes = [IsAdminUser]
-        pagination_class = PageNumberPagination
-
-        def get(self, request):
-            disputes = Dispute.objects.all().select_related("user", "ride", "transaction")
-            paginator = self.pagination_class()
-            page = paginator.paginate_queryset(disputes, request)
-            serializer = DisputeSerializer(page, many=True)
-            return paginator.get_paginated_response(serializer.data)
-    # permission_classes = [IsAdminUser]
-
-    # def get(self, request):
-    #     disputes = Dispute.objects.all().select_related("user", "ride", "transaction")
-    #     serializer = DisputeSerializer(disputes, many=True)
-    #     return Response(serializer.data)
-
-class AllDisputesView(APIView):
-    """admin to view all disputes"""
-    permission_classes = [IsAdminUser]  # Restrict to admins
-    def get(self, request):
-        disputes = Dispute.objects.all()
-        serializer = DisputeSerializer(disputes, many=True)
-        return Response(serializer.data)
-
-
-
 
 
 # passenger dashboard
 from rest_framework.views import APIView
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
-from .models import RideRequest, CarpoolRide, DriverLocation
+from .models import RideRequest, CarpoolRide
 
 from rest_framework.views import APIView
 from rest_framework.permissions import IsAuthenticated
@@ -1622,6 +944,7 @@ import logging
 logger = logging.getLogger(__name__)
 
 class PassengerDriverLocationView(APIView):
+    """passengers get updated driver location"""
     permission_classes = [IsAuthenticated]
 
     def get(self, request, ride_id):
@@ -1679,128 +1002,274 @@ class PassengerDriverLocationView(APIView):
                 {"error": f"Internal server error: {str(e)}"},
                 status=500
             )
-# class PassengerDriverLocationView(APIView):
-#     """Allow passengers to fetch the driver's live location for a ride they are part of."""
-#     permission_classes = [IsAuthenticated]
-
-#     def get(self, request, ride_id):
-#         try:
-#             # Check if the user has an accepted ride request for this ride
-#             ride_request = RideRequest.objects.filter(
-#                 ride__carpoolride_id=ride_id,
-#                 passenger=request.user,
-#                 status="accepted"
-#             ).first()
-
-#             if not ride_request:
-#                 return Response(
-#                     {"error": "You are not authorized to view this driver's location"},
-#                     status=403
-#                 )
-
-#             # Fetch the latest driver location
-#             location = UserLocation.objects.filter(user=ride_request.ride.driver).order_by('-updated_at').first()
-#             if not location:
-#                 return Response(
-#                     {"error": "Driver location not found"},
-#                     status=404
-#                 )
-#             print({
-#                     "user_id": str(ride_request.ride.driver.id),
-#                     "latitude": location.latitude,
-#                     "longitude": location.longitude,
-#                     "name": ride_request.ride.driver.fullname,
-#                     "updated_at": location.updated_at,
-#                 })
-#             return Response({
-#                 "user_id": str(ride_request.ride.driver.id),
-#                 "latitude": location.latitude,
-#                 "longitude": location.longitude,
-#                 "name": ride_request.ride.driver.fullname,
-#                 "updated_at": location.updated_at,
-#             })
-
-#         except CarpoolRide.DoesNotExist:
-#             return Response(
-#                 {"error": "Ride not found"},
-#                 status=404
-#             )
-#         except Exception as e:
-#             logger.error(f"Error fetching driver location for passenger: {str(e)}")
-#             return Response(
-#                 {"error": f"Internal server error: {str(e)}"},
-#                 status=500
-#             )
+           
 #Passengers Request to Join a Ride (Pending Approval)
 # Instead of automatically joining a ride, passengers send a request, and the driver approves or declines.
 from django.shortcuts import get_object_or_404
+from channels.layers import get_channel_layer
+from rest_framework import generics
+from rest_framework.permissions import IsAuthenticated
+from rest_framework.exceptions import ValidationError
+from .models import CarpoolRide, RideRequest, UserWallet
+from .serializers import RideRequestSerializer
+import logging
+
+logger = logging.getLogger(__name__)
+
 class RequestToJoinRideView(CreateAPIView):
-    """passengers could request rides"""
+    """allows passengers to request to join carpool and simultaneously update request ride in 
+    driver's dashboard via websocket"""
     serializer_class = RideRequestSerializer
     permission_classes = [IsAuthenticated]
 
     def perform_create(self, serializer):
         request_data = self.request.data
-        print(f"Received request data: {request_data}")  # 🔍 Log incoming data
+        logger.debug(f"Received request data: {request_data}")
+        logger.debug(f"Authenticated user: {self.request.user.id}, {self.request.user.fullname}")
 
-   
-        ride_id = self.request.data.get("ride")  # Expecting ride ID from frontend
-        pickup_location = self.request.data.get("pickup_location")
-        
-        ride = get_object_or_404(CarpoolRide, carpoolride_id=ride_id)  # Ensure ride exists
-        passenger_wallet = UserWallet.objects.get(user=self.request.user)
-        if passenger_wallet.balance < ride.fare:
-            raise ValidationError("Insufficient balance to request this ride.")
-        
-        serializer.save(
+        ride_id = request_data.get("ride")
+        pickup_location = request_data.get("pickup_location")
+        seats_requested = request_data.get("seats_requested", 1)
+
+        if not ride_id or not pickup_location:
+            raise ValidationError("Missing ride or pickup location data.")
+
+        try:
+            ride = get_object_or_404(CarpoolRide, carpoolride_id=ride_id)
+            logger.debug(f"Retrieved ride: {ride.carpoolride_id}")
+        except ValueError:
+            raise ValidationError("Invalid ride ID format.")
+
+        # Check for existing restricted requests
+        existing_request = RideRequest.objects.filter(
             passenger=self.request.user,
             ride=ride,
-            pickup_location=pickup_location,  # Ensure pickup location is saved
+            status__in=["pending", "canceled", "declined"]
+        ).first()
+        if existing_request:
+            status = existing_request.status
+            raise ValidationError(f"You have a {status} request for this ride. Cannot submit another request. Please select another ride")
+
+        # Check wallet balance
+        passenger_wallet = UserWallet.objects.get(user=self.request.user)
+        logger.debug(f"Passenger wallet balance: {passenger_wallet.balance}")
+
+        fare = ride.contribution_per_seat * int(seats_requested)
+        if passenger_wallet.balance < fare:
+            raise ValidationError("Insufficient balance to request this ride.")
+
+        ride_request = serializer.save(
+            passenger=self.request.user,
+            ride=ride,
+            pickup_location=pickup_location,
             status="pending"
+        )
+
+        # Broadcast the new ride request
+        channel_layer = get_channel_layer()
+        request_data = {
+            'ridrequest_id': str(ride_request.ridrequest_id),
+            'passenger_name': self.request.user.fullname,
+            'pickup_location': ride_request.pickup_location,
+            'seats_requested': ride_request.seats_requested,
+            'status': ride_request.status,
+            'created_at': ride_request.created_at.isoformat(),
+        }
+        async_to_sync(channel_layer.group_send)(
+            f'ride_{ride_id}',
+            {
+                'type': 'ride_request_update',
+                'request_data': request_data,
+            }
+        )
+        logger.info(f"Broadcasted ride request {ride_request.ridrequest_id} to group ride_{ride_id}")
+
+        
+from django.utils import timezone
+class PassengerRideRequestListView(generics.ListAPIView):
+    permission_classes = [IsAuthenticated]
+    serializer_class = RideRequestSerializer
+
+    def get_queryset(self):
+        # return RideRequest.objects.filter(passenger=self.request.user)
+        return RideRequest.objects.filter(
+            passenger=self.request.user,
+            ride__status="pending",  # Only pending rides
+            ride__is_completed=False,
+            ride__is_cancelled=False,
+            ride__departure_time__gte=timezone.now()  # Exclude in-progress rides
+        ).select_related("ride").order_by('-created_at')
+
+
+
+
+
+
+
+from .utils import notify_user
+from rest_framework.views import APIView
+from rest_framework.response import Response
+from rest_framework.permissions import IsAuthenticated
+from rest_framework.serializers import ValidationError
+from django.shortcuts import get_object_or_404
+from .models import RideMatch, CarpoolRide, RideRequest, UserWallet
+from .serializers import RideRequestSerializer, RideMatchSerializer
+class PassengerRideMatchesView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        matches = RideMatch.objects.filter(passenger=request.user, status="suggested").select_related("ride", "ride__driver")
+        serializer = RideMatchSerializer(matches, many=True)
+        return Response(serializer.data)
+
+
+class AcceptRideMatchView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request, match_id):
+        print(f"Received request data: {request.data}")  # 🔍 Log incoming data
+
+        try:
+            # Retrieve and validate RideMatch
+            match = get_object_or_404(
+                RideMatch,
+                id=match_id,
+                passenger=request.user,
+                status="suggested"
+            )
+            ride = match.ride
+
+            # Check seat availability
+            if ride.available_seats < 1 or ride.is_full:
+                return Response({"error": "No seats available"}, status=400)
+
+            # Check for existing pending request
+            if RideRequest.objects.filter(ride=ride, passenger=request.user, status="pending").exists():
+                return Response({"error": "You already have a pending request for this ride"}, status=400)
+
+            # Check wallet balance
+            passenger_wallet = get_object_or_404(UserWallet, user=request.user)
+            if passenger_wallet.balance < ride.fare:
+                return Response({"error": "Insufficient balance to request this ride"}, status=400)
+
+            # Validate request data using RideRequestSerializer
+            serializer = RideRequestSerializer(data={
+                "ride": str(ride.carpoolride_id),
+                "pickup_location": request.data.get("pickup_location"),
+                "dropoff_location": request.data.get("dropoff_location"),  # Optional
+                "seats_requested": request.data.get("seats_requested", 1),
+            })
+            serializer.is_valid(raise_exception=True)
+
+            # Save RideRequest
+            serializer.save(
+                passenger=request.user,
+                ride=ride,
+                status="pending"
             )
 
+            # Update RideMatch status
+            match.status = "accepted"
+            match.save()
 
+            # Notify driver
+            notify_user(
+                ride.driver,
+                f"{request.user.fullname} has requested to join your ride from {ride.origin['label']}.",
+                carpoolride_id=str(ride.carpoolride_id)
+            )
+
+            return Response({"message": "Ride request sent to driver"})
+        except RideMatch.DoesNotExist:
+            return Response({"error": "Match not found"}, status=404)
+
+class DeclineRideMatchView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request, match_id):
+        try:
+            # Retrieve and validate RideMatch
+            match = get_object_or_404(
+                RideMatch,
+                id=match_id,
+                passenger=request.user,
+                status="suggested"
+            )
+            ride = match.ride
+
+            # Update RideMatch status to rejected
+            match.status = "rejected"
+            match.save()
+
+            # Notify passenger (optional)
+            notify_user(
+                request.user,
+                f"You have declined the ride match from {ride.origin['label']} to {ride.destination['label']}.",
+                carpoolride_id=str(ride.carpoolride_id)
+            )
+
+            return Response({"message": "Ride match declined successfully"})
+        except RideMatch.DoesNotExist:
+            return Response({"error": "Match not found or already processed"}, status=404)
+        
 
 from rest_framework.permissions import AllowAny
-from datetime import time
+from datetime import time, datetime
 from django.db.models import Q 
-"""allow passengers to search for different rides"""
+
+
 class PassengerCarpoolRideViewSet(ModelViewSet):
     queryset = CarpoolRide.objects.all()
     serializer_class = CarpoolRideSerializer
-    # permission_classes = [IsAuthenticated]  # Optional: require login
-    permission_classes = [AllowAny]  # Optional: require login
+    permission_classes = [IsAuthenticated]
+    http_method_names = ['get']
 
     def get_queryset(self):
         queryset = super().get_queryset()
-        # Filter for available rides only ("pending" means not completed and not canceled)
-        queryset = queryset.filter(is_completed=False, is_cancelled=False, available_seats__gt=0)
-        print(f"this is the request params: {self.request.query_params}")
-         # Filter by pickup location**
-        origin = self.request.query_params.get("origin", None)
-        print(f"this is the origin: {origin}")
+        queryset = queryset.filter(
+            is_completed=False,
+            is_cancelled=False,
+            available_seats__gt=0,
+            departure_time__gte=timezone.now()
+        ).exclude(
+            requests__passenger=self.request.user,
+            requests__status__in=["pending", "canceled"]
+            # requests__status__in=["pending", "canceled", "declined"]
+        )
+        params = self.request.query_params
+        logger.debug(f"Request params: {params}")
+
+        origin = params.get("origin", "").strip()
         if origin:
-            queryset = queryset.filter(Q(origin__icontains=origin))
-        
-        # Filter by is_women_only if provided in query params
-        is_women_only = self.request.query_params.get("is_women_only", None)
+            queryset = queryset.filter(origin__label__icontains=origin)
+            logger.debug(f"Origin filter: {origin}")
+
+        destination = params.get("destination", "").strip()
+        if destination:
+            queryset = queryset.filter(destination__label__icontains=destination)
+            logger.debug(f"Destination filter: {destination}")
+
+        is_women_only = params.get("is_women_only")
         if is_women_only == "true":
             queryset = queryset.filter(is_women_only=True)
         elif is_women_only == "false":
             queryset = queryset.filter(is_women_only=False)
-        # If is_women_only is not specified, return all available rides (no filter)
 
-        # Exclude rides where the passenger is the driver
         queryset = queryset.exclude(driver=self.request.user)
-        
-        # Get pickup date filter
-        pickup_date = self.request.query_params.get("pickup_date", None)
-        if pickup_date:
-            queryset = queryset.filter(departure_time__date=pickup_date)
 
-        # Get selected time slot
-        time_slot = self.request.query_params.get("time_slot", None)
-        if time_slot:
+        pickup_date = params.get("pickup_date")
+        if pickup_date:
+            try:
+                pickup_date_obj = datetime.strptime(pickup_date, '%Y-%m-%d').date()
+                queryset = queryset.filter(departure_time__date=pickup_date_obj)
+                logger.debug(f"Pickup date filter: {pickup_date}")
+            except ValueError as e:
+                logger.warning(f"Invalid pickup_date format: {pickup_date}, error: {e}")
+                pass
+
+        time_slot = params.get("time_slot")
+        if time_slot and time_slot != "":
+            logger.debug(f"Time slot filter: {time_slot}")
             if time_slot == "before_06":
                 queryset = queryset.filter(departure_time__time__lt=time(6, 0))
             elif time_slot == "06_12":
@@ -1811,25 +1280,11 @@ class PassengerCarpoolRideViewSet(ModelViewSet):
                 queryset = queryset.filter(departure_time__time__gt=time(18, 0))
 
         return queryset
-
-
-class CancelRideView(APIView):
-    """Allow a user to cancel a ride before departure."""
-    permission_classes = [IsAuthenticated]
-
-    def post(self, request, ride_id):
-        user = request.user
-
-        try:
-            ride_request = RideRequest.objects.get(ride_id=ride_id, passenger=user, status="accepted")
-        except RideRequest.DoesNotExist:
-            return Response({"error": "Ride not found or cannot be canceled."}, status=400)
-
-        ride_request.status = "canceled"
-        ride_request.save()
-
-        return Response({"message": "Ride canceled successfully."})
     
+    
+
+"""below version was to be deleted"""
+
 from .models import UserLocation, CarpoolRide
 from rest_framework.views import APIView
 from rest_framework.response import Response
@@ -1866,25 +1321,6 @@ class DriverLocationView(APIView):
                 {'error': f'Internal server error: {str(e)}'},
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR
             )
-# class DriverLocationView(APIView):
-#     """official get driver location"""
-#     permission_classes = [IsAuthenticated]
-
-#     def get(self, request, ride_id):
-#         try:
-#             ride = CarpoolRide.objects.get(carpoolride_id=ride_id, driver=request.user)
-#             location = UserLocation.objects.filter(ride=ride, user=request.user).first()
-#             if not location:
-#                 return Response({'error': 'Driver location not found'}, status=status.HTTP_404_NOT_FOUND)
-#             return Response({
-#                 'user_id': str(location.user.id),
-#                 'latitude': location.latitude,
-#                 'longitude': location.longitude,
-#                 'name': location.user.fullname,
-#                 'updated_at': location.updated_at,
-#             })
-#         except CarpoolRide.DoesNotExist:
-#             return Response({'error': 'Ride not found or not authorized'}, status=status.HTTP_404_NOT_FOUND)
 
 class GetMapKeyView(APIView):
     permission_classes = [IsAuthenticated]
@@ -1893,28 +1329,6 @@ class GetMapKeyView(APIView):
         # print(f"this is the response")
         return Response({"key": settings.GOOGLE_MAPS_API_KEY})
 
-# class GetDriverLiveLocationView(APIView):
-#     """Get the live location of the driver for an ongoing ride."""
-#     permission_classes = [IsAuthenticated]
-
-#     def get(self, request, ride_id):
-#         user = request.user
-
-#         # Check if the user is in an accepted ride
-#         try:
-#             ride_request = RideRequest.objects.get(ride_id=ride_id, passenger=user, status="accepted")
-#         except RideRequest.DoesNotExist:
-#             return Response({"error": "You are not in this ride."}, status=403)
-
-#         # Fetch driver's latest location
-#         try:
-#             location = DriverLocation.objects.get(driver=ride_request.ride.driver)
-#             return Response({
-#                 "latitude": location.latitude,
-#                 "longitude": location.longitude
-#             })
-#         except DriverLocation.DoesNotExist:
-#             return Response({"error": "Driver location not available."}, status=404)
 
 #deposit funds into wallet balance
 from django.conf import settings
@@ -2027,73 +1441,6 @@ class MockWalletController(viewsets.ViewSet):
         except Payment.DoesNotExist:
             return Response({"error": "Payment not found"}, status=404)
 
-# deposit funds to wallet
-""" Official deposit funds to wallet
-Passengers deposit funds into their wallet balance before booking a ride."""
-"""to be used in prod"""
-# class DepositToWalletView(APIView):
-#     def post(self, request):
-#         user = request.user
-#         phone_number = request.data.get("phone_number")
-#         amount = request.data.get("amount")
-        
-#         if not phone_number or not amount or Decimal(amount) <= 0:
-#             return Response({"error": "Invalid phone number or amount"}, status=400)
-
-#         # Create or get wallet
-#         wallet, _ = UserWallet.objects.get_or_create(user=user)
-        
-#         # Initiate STK Push
-#         access_token = get_mpesa_access_token()
-#         headers = {"Authorization": f"Bearer {access_token}", "Content-Type": "application/json"}
-#         payload = {
-#             "BusinessShortCode": settings.MPESA_SHORTCODE,
-#             "Password": generate_stk_password(),
-#             "Timestamp": generate_timestamp(),
-#             "TransactionType": "CustomerPayBillOnline",
-#             "Amount": str(Decimal(amount)),  # Ensure string for M-Pesa
-#             "PartyA": phone_number,
-#             "PartyB": settings.MPESA_SHORTCODE,
-#             "PhoneNumber": phone_number,
-#             "CallBackURL": settings.MPESA_CALLBACK_URL,
-#             "AccountReference": f"Wallet-{user.id}",
-#             "TransactionDesc": "Wallet top-up",
-#         }
-
-#         response = requests.post(settings.MPESA_STK_PUSH_URL, json=payload, headers=headers)
-#         response_data = response.json()
-        
-#         if response.status_code == 200 and response_data.get("ResponseCode") == "0":
-#             # Store wallet deposit as pending
-#             WalletTransaction.objects.create(
-#                 user=user, amount=amount, transaction_type="deposit", status="pending",
-#                 reference=response_data.get("CheckoutRequestID"),
-#             )
-#             return Response({"message": "Wallet top-up initiated. Approve the STK Push."})
-#         return Response({"error": "Failed to initiate wallet deposit.", "here are the details": response_data}, status=400)
-
-"""to be used in prod"""
-# class MpesaCallbackView(APIView):
-#     """ official to handle mpesa confirmation"""
-#     def post(self, request):
-#         data = request.data.get("Body", {}).get("stkCallback", {})
-#         checkout_request_id = data.get("CheckoutRequestID")
-#         result_code = data.get("ResultCode")
-
-#         if result_code == 0:  # Success
-#             transaction = WalletTransaction.objects.get(reference=checkout_request_id, status="pending")
-#             transaction.status = "completed"
-#             transaction.save()
-#             wallet = UserWallet.objects.get(user=transaction.user)
-#             wallet.balance += transaction.amount
-#             wallet.save()
-#         else:  # Failed
-#             transaction = WalletTransaction.objects.get(reference=checkout_request_id, status="pending")
-#             transaction.status = "failed"
-#             transaction.save()
-
-#         return Response({"message": "Callback processed"})
-    
     #Paying for a Ride from the Wallet
 """When a user books a ride, the fare is deducted from their wallet balance instead of using M-Pesa directly."""
 from rest_framework.views import APIView
@@ -2189,67 +1536,13 @@ class ReleaseRidePaymentToDriverView(APIView):
 
 # Driver Withdraws Funds to M-Pesa
 """Drivers can withdraw their earnings from their in-app wallet to M-Pesa anytime."""
-from rest_framework.views import APIView
-from rest_framework.response import Response
-from rest_framework.permissions import IsAuthenticated
-from decimal import Decimal
-from .models import UserWallet, WalletTransaction
-from .utils import get_mpesa_access_token
-"""to be used in"""
-# class WithdrawToMpesaView(APIView):
-#     """official driver withdrawal to mpesa"""
-#     permission_classes = [IsAuthenticated]
 
-#     def post(self, request):
-#         user = request.user
-#         amount = Decimal(request.data.get("amount", 0))
-
-#         if amount <= 0:
-#             return Response({"error": "Invalid amount"}, status=400)
-
-#         wallet = UserWallet.objects.select_for_update().get(user=user)
-#         if wallet.balance < amount:
-#             return Response({"error": "Insufficient wallet balance"}, status=400)
-
-#         # Initiate B2C Withdrawal
-#         access_token = get_mpesa_access_token()
-#         headers = {"Authorization": f"Bearer {access_token}", "Content-Type": "application/json"}
-#         payload = {
-#             "InitiatorName": settings.MPESA_INITIATOR,
-#             "SecurityCredential": settings.MPESA_SECURITY_CREDENTIAL,
-#             "CommandID": "BusinessPayment",
-#             "Amount": str(amount),
-#             "PartyA": settings.MPESA_SHORTCODE,
-#             "PartyB": user.phone_number,
-#             "Remarks": "Driver withdrawal",
-#             "QueueTimeOutURL": settings.MPESA_B2C_TIMEOUT_URL,
-#             "ResultURL": settings.MPESA_B2C_RESULT_URL,
-#             "Occasion": f"Withdrawal-{user.id}",
-#         }
-
-#         response = requests.post(settings.MPESA_B2C_URL, json=payload, headers=headers)
-#         response_data = response.json()
-
-#         if response.status_code == 200 and response_data.get("ResponseCode") == "0":
-#             with transaction.atomic():
-#                 wallet.balance -= amount
-#                 wallet.save()
-#                 WalletTransaction.objects.create(
-#                     user=user,
-#                     amount=amount,
-#                     transaction_type="withdrawal",
-#                     status="completed",
-#                     reference=response_data.get("TransactionID"),
-#                 )
-#             return Response({"message": "Withdrawal request sent to M-Pesa."})
-#         return Response({"error": "Failed to process withdrawal.", "details": response_data}, status=400)
-##incase of disputes
 """Users can file disputes for transactions or rides."""
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated
-from .models import Dispute, CarpoolRide, WalletTransaction
-from .serializers import DisputeSerializer
+from .models import CarpoolRide, WalletTransaction
+
 
 
 
@@ -2325,6 +1618,9 @@ from django.core.mail import send_mail
 from django.utils.crypto import get_random_string
 from decimal import Decimal
 from django.db import transaction
+from django.template.loader import render_to_string
+from django.core.mail import EmailMultiAlternatives
+
 """allows users to send funds to another user
     OFFICIAL transfer of funds that are in the app wallet
 """
@@ -2333,68 +1629,109 @@ class TransferFundsView(APIView):
 
     def post(self, request):
         """Transfer funds between users securely."""
-        # recipient_id = request.data.get("recipient_id")
-        phone_number = request.data.get("phone_number") #receipent's phone number
+        phone_number = request.data.get("phone_number")  # Recipient's phone number
         amount = request.data.get("amount")
 
         if not phone_number or not amount or Decimal(amount) <= 0:
             return Response({"error": "Invalid request"}, status=status.HTTP_400_BAD_REQUEST)
 
-        sender_wallet = UserWallet.objects.select_for_update().get(user=request.user)
-        
-        try:
-            recipient_wallet = UserWallet.objects.select_for_update().get(user__phone_number=phone_number)
-        except UserWallet.DoesNotExist:
-            return Response({"error": "Recipient not found"}, status=status.HTTP_404_NOT_FOUND)
-
         # Transfer Limit Check: Prevent rapid multiple transfers
-        time_threshold = now() - timedelta(minutes=5)  # Prevent transfers every 5 min
+        time_threshold = timezone.now() - timedelta(minutes=5)  # Prevent transfers every 5 min
         recent_transfers = WalletTransaction.objects.filter(
             user=request.user, transaction_type="transfer", created_at__gte=time_threshold
         ).count()
-        
+
         if recent_transfers >= 3:  # Limit: Max 3 transfers in 5 min
             return Response({"error": "Transfer limit reached. Try again later."}, status=status.HTTP_429_TOO_MANY_REQUESTS)
 
-        if sender_wallet.balance < Decimal(amount):
-            return Response({"error": "Insufficient balance"}, status=status.HTTP_400_BAD_REQUEST)
-
-        reference = f"TRF-{get_random_string(10)}"
-
         try:
-            with transaction.atomic():  # Ensures rollback on failure
+            with transaction.atomic():  # Start transaction
+                # Lock sender and recipient wallets
+                sender_wallet = UserWallet.objects.select_for_update().get(user=request.user)
+                
+                try:
+                    recipient_wallet = UserWallet.objects.select_for_update().get(user__phone_number=phone_number)
+                except UserWallet.DoesNotExist:
+                    return Response({"error": "Recipient not found"}, status=status.HTTP_404_NOT_FOUND)
+
+                if sender_wallet.balance < Decimal(amount):
+                    return Response({"error": "Insufficient balance"}, status=status.HTTP_400_BAD_REQUEST)
+
+                reference = f"TRF-{get_random_string(10)}"
+
+                # Update wallet balances
                 sender_wallet.balance -= Decimal(amount)
                 sender_wallet.save()
 
                 recipient_wallet.balance += Decimal(amount)
                 recipient_wallet.save()
 
+                # Create transaction record
                 WalletTransaction.objects.create(
                     user=request.user,
                     recipient=recipient_wallet.user,
-                    
                     sender_name=request.user.fullname,
                     sender_phone=request.user.phone_number,
                     recipient_name=recipient_wallet.user.fullname,
                     recipient_phone=recipient_wallet.user.phone_number,
-                    
-                    # phone_number=phone_number,
                     amount=amount,
                     transaction_type="transfer",
                     status="completed",
                     reference=reference
                 )
 
-            # **Send Email Notifications**
+            # Send Email Notifications (outside transaction for performance)
+            # Send Email Notifications
             subject = "Wallet Transfer Confirmation"
-            sender_message = f"You have successfully sent KES {amount} to user {recipient_wallet.user.fullname}. Transaction Ref: {reference}."
-            recipient_message = f"You have received KES {amount} from {request.user.fullname}. Transaction Ref: {reference}."
-            
-            send_mail(subject, sender_message, "no-reply@carpool.com", [request.user.email])
-            send_mail(subject, recipient_message, "no-reply@carpool.com", [recipient_wallet.user.email])
+            sender_message = (
+                f"You have successfully sent KES {amount} to {recipient_wallet.user.fullname}.<br>"
+                f"Transaction Reference: {reference}<br>"
+                f"Date: {timezone.now().strftime('%Y-%m-%d %H:%M:%S')}"
+            )
+            recipient_message = (
+                f"You have received KES {amount} from {request.user.fullname}.<br>"
+                f"Transaction Reference: {reference}<br>"
+                f"Date: {timezone.now().strftime('%Y-%m-%d %H:%M:%S')}"
+            )
+
+            context = {
+                'subject': subject,
+                'year': timezone.now().year,
+            }
+
+            # Sender email
+            context['user_name'] = request.user.first_name
+            context['message'] = sender_message
+            text_content = render_to_string('emails/base_email.txt', context)
+            html_content = render_to_string('emails/base_email.html', context)
+            email = EmailMultiAlternatives(
+                subject=subject,
+                body=text_content,
+                from_email=f"DukeRides <{settings.DEFAULT_FROM_EMAIL}>", 
+                # from_email=settings.DEFAULT_FROM_EMAIL,
+                to=[request.user.email],
+            )
+            email.attach_alternative(html_content, "text/html")
+            email.send()
+            logger.info(f"Transfer confirmation email sent to {request.user.email}")
+
+            # Recipient email
+            context['user_name'] = recipient_wallet.user.first_name
+            context['message'] = recipient_message
+            text_content = render_to_string('emails/base_email.txt', context)
+            html_content = render_to_string('emails/base_email.html', context)
+            email = EmailMultiAlternatives(
+                subject=subject,
+                body=text_content,
+                from_email=f"DukeRides <{settings.DEFAULT_FROM_EMAIL}>", 
+                # from_email=settings.DEFAULT_FROM_EMAIL,
+                to=[recipient_wallet.user.email],
+            )
+            email.attach_alternative(html_content, "text/html")
+            email.send()
+            logger.info(f"Transfer confirmation email sent to {recipient_wallet.user.email}")
 
             return Response({"message": "Transfer successful", "reference": reference}, status=status.HTTP_200_OK)
-
         except Exception as e:
             return Response({"error": "Transaction failed. Try again later."}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
         
@@ -2403,42 +1740,143 @@ class TransferFundsView(APIView):
     The driver gets paid when the ride is completed.
     Money is refunded if a dispute occurs.
 """
+from decimal import Decimal
+from Taxi.models import ProfileStats, Report
+
 class CompleteRideView(APIView):
     permission_classes = [IsAuthenticated]
 
     def post(self, request, ride_id):
-        """Release escrow funds when ride is marked as completed."""
-        from .models import CarpoolRide  # Assuming you have a ride model
-
         try:
-            ride = CarpoolRide.objects.get(id=ride_id, driver=request.user)
+            ride = CarpoolRide.objects.get(carpoolride_id=ride_id, driver=request.user)
         except CarpoolRide.DoesNotExist:
             return Response({"error": "Ride not found or unauthorized"}, status=status.HTTP_404_NOT_FOUND)
 
-        # Ensure ride is marked as completed
-        if ride.status != "completed":
-            return Response({"error": "Ride is not completed yet"}, status=status.HTTP_400_BAD_REQUEST)
+        if ride.status == "completed":
+            return Response({"error": "Ride has already been completed"}, status=status.HTTP_400_BAD_REQUEST)
 
-        # Get the wallet of the driver
-        driver_wallet, _ = UserWallet.objects.get_or_create(user=ride.driver)
-
-        # Release escrow funds to driver
-        total_fare = sum(request.amount for request in ride.ride_requests.filter(status="accepted"))
-        if driver_wallet.release_escrow(total_fare):
-            # Record transaction
-            reference = f"ESC-{get_random_string(10)}"
-            WalletTransaction.objects.create(
-                user=ride.driver,
-                amount=total_fare,
-                transaction_type="escrow_release",
-                status="completed",
-                reference=reference
-            )
-
-            return Response({"message": "Escrow funds released to driver", "reference": reference}, status=status.HTTP_200_OK)
+        # Mark the ride as completed
+        ride.status = "completed"
+        ride.is_completed = True
+        ride.save()
         
-        return Response({"error": "Escrow release failed"}, status=status.HTTP_400_BAD_REQUEST)
+        driver_wallet, _ = UserWallet.objects.get_or_create(user=ride.driver)
+        accepted_requests = ride.requests.filter(status="accepted", payment_status="paid")
+        
+        total_released = Decimal("0.00")
+        
+        # Update driver stats
+        driver_stats, _ = ProfileStats.objects.get_or_create(user=ride.driver)
+        driver_stats.total_rides_as_driver += 1
 
+        for req in accepted_requests:
+            fare = Decimal(ride.contribution_per_seat) * req.seats_requested
+            passenger_wallet = req.passenger.wallet
+
+            if passenger_wallet.escrow_balance >= fare:
+                # Deduct from passenger escrow
+                passenger_wallet.escrow_balance -= fare
+                passenger_wallet.save()
+
+                # Credit to driver wallet
+                driver_wallet.balance += fare
+                total_released += fare
+                
+                # Update driver stats with earnings
+                driver_stats.total_earnings += fare
+                
+                # Update passenger stats
+                passenger_stats, _ = ProfileStats.objects.get_or_create(user=req.passenger)
+                passenger_stats.total_rides_as_passenger += 1
+                passenger_stats.save()
+
+                reference = f"ESC-{get_random_string(10)}"
+                # Create transaction record
+                WalletTransaction.objects.create(
+                    user=ride.driver,
+                    recipient=req.passenger,
+                    amount=fare,
+                    transaction_type="escrow_release",
+                    status="completed",
+                    reference=reference,
+                    sender_name=req.passenger.fullname,
+                    sender_phone=req.passenger.phone_number,
+                    recipient_name=ride.driver.fullname,
+                    recipient_phone=ride.driver.phone_number
+                )
+                # Create Report instance for payment receipt
+                report_data = {
+                    "ride_id": str(ride.carpoolride_id),
+                    "passenger": req.passenger.fullname,
+                    "driver": ride.driver.fullname,
+                    "amount": str(fare),
+                    "transaction_reference": str(reference),
+                    "date": timezone.now().strftime("%Y-%m-%d %H:%M:%S"),
+                    "status": "completed",
+                }
+                try:
+                    json_data = json.dumps(report_data)
+                except TypeError as e:
+                    logger.error("Failed to serialize report_data: %s", report_data)
+                    raise e  # Or return a response with error for debugging
+                
+                Report.objects.create(
+                    user=req.passenger,
+                    report_type="payment_receipt",
+                    report_data=report_data,
+                    created_at=timezone.now(),
+                    file_url=None,  # Set to PDF URL if generated
+                )
+                
+                
+
+        driver_wallet.save()
+        driver_stats.save()
+
+        if total_released > 0:
+            return Response({
+                "message": f"Escrow funds released to driver: {total_released}",
+                "total_released": str(total_released)
+            }, status=status.HTTP_200_OK)
+        # # send email
+        # message = (
+        #     f"<h3>Payment Receipt</h3>"
+        #     f"<p><strong>Ride ID:</strong> {ride.carpoolride_id}</p>"
+        #     f"<p><strong>Passenger:</strong> {req.passenger.fullname}</p>"
+        #     f"<p><strong>Driver:</strong> {ride.driver.fullname}</p>"
+        #     f"<p><strong>Amount:</strong> KES {fare}</p>"
+        #     f"<p><strong>Transaction Reference:</strong> {reference}</p>"
+        #     f"<p><strong>Date:</strong> {timezone.now().strftime('%Y-%m-%d %H:%M:%S')}</p>"
+        # )
+        # # Render templates
+        #     context = {
+        #         'subject': subject,
+        #         'user_name': ride_request.passenger.first_name,
+        #         'message': message,
+        #         'year': timezone.now().year,
+        #     }
+        #     text_content = render_to_string('emails/base_email.txt', context)
+        #     html_content = render_to_string('emails/base_email.html', context)
+
+        #     # Send email
+        #     email = EmailMultiAlternatives(
+        #         subject=subject,
+        #         body=text_content,
+        #         from_email=settings.DEFAULT_FROM_EMAIL,
+        #         to=[ride_request.passenger.email],
+        #     )
+        #     email.attach_alternative(html_content, "text/html")
+        #     try:
+        #         email.send()
+        #         logger.info(f"Booking confirmation email sent to {ride_request.passenger.email}")
+        #     except Exception as e:
+        #         logger.error(f"Failed to send booking confirmation email: {str(e)}")
+        
+        
+        return Response({
+            "message": "Ride completed, but no funds were available in escrow to release.",
+            "total_released": "0.00"
+        }, status=status.HTTP_200_OK)
 
 
 from rest_framework.views import APIView
@@ -2448,175 +1886,147 @@ from django.utils.crypto import get_random_string
 from django.db import transaction
 from .models import CarpoolRide, UserWallet, WalletTransaction
 
-class DisputeRideView(APIView):
-    """official disput ride view"""
-    permission_classes = [IsAuthenticated]
 
-    def post(self, request, ride_id):
-        """Handle ride disputes and refund passenger if applicable."""
-        try:
-            ride = CarpoolRide.objects.get(id=ride_id)
-        except CarpoolRide.DoesNotExist:
-            return Response({"error": "Ride not found"}, status=404)
-
-        # Check if user is a passenger on this ride
-        ride_request = ride.requests.filter(passenger=request.user, status="accepted").first()
-        if not ride_request:
-            return Response({"error": "Unauthorized action"}, status=403)
-
-        user_wallet = UserWallet.objects.get(user=request.user)
-        total_fare = ride_request.transaction.amount if ride_request.transaction else ride.fare  # Use transaction or ride fare
-
-        with transaction.atomic():
-            if user_wallet.refund_escrow(total_fare):
-                reference = f"REF-{get_random_string(10)}"
-                WalletTransaction.objects.create(
-                    user=request.user,
-                    amount=total_fare,
-                    transaction_type="escrow_refund",
-                    status="completed",
-                    reference=reference,
-                )
-                # Optionally create a dispute record
-                Dispute.objects.create(user=request.user, ride=ride, reason="Ride dispute refund")
-                return Response({"message": "Escrow funds refunded", "reference": reference})
-            return Response({"error": "Refund failed"}, status=400)
-
-
-
-class DisputeRideView(APIView):
-    """to be deleted"""
-    permission_classes = [IsAuthenticated]
-
-    def post(self, request, ride_id):
-        """Handle disputes and refund escrow to user."""
-        from .models import CarpoolRide  # Importing the ride model
-
-        try:
-            ride = CarpoolRide.objects.get(id=ride_id)
-        except CarpoolRide.DoesNotExist:
-            return Response({"error": "Ride not found"}, status=status.HTTP_404_NOT_FOUND)
-
-        if request.user != ride.passenger:
-            return Response({"error": "Unauthorized action"}, status=status.HTTP_403_FORBIDDEN)
-
-        user_wallet, _ = UserWallet.objects.get_or_create(user=ride.passenger)
-
-        # Refund escrow back to user
-        total_fare = sum(request.amount for request in ride.ride_requests.filter(status="accepted"))
-        if user_wallet.refund_escrow(total_fare):
-            reference = f"REF-{get_random_string(10)}"
-            WalletTransaction.objects.create(
-                user=ride.passenger,
-                amount=total_fare,
-                transaction_type="escrow_refund",
-                status="completed",
-                reference=reference
-            )
-
-            return Response({"message": "Escrow funds refunded to user", "reference": reference}, status=status.HTTP_200_OK)
-        
-        return Response({"error": "Refund failed"}, status=status.HTTP_400_BAD_REQUEST)
-
-class SubmitDisputeView(APIView):
-    permission_classes = [IsAuthenticated]
-
-    def post(self, request):
-        user = request.user
-        ride_id = request.data.get("ride_id")
-        transaction_id = request.data.get("transaction_id")
-        reason = request.data.get("reason")
-
-        if not reason:
-            return Response({"error": "Reason for dispute is required."}, status=400)
-
-        ride = CarpoolRide.objects.filter(id=ride_id).first()
-        transaction = WalletTransaction.objects.filter(id=transaction_id).first()
-
-        dispute = Dispute.objects.create(user=user, ride=ride, transaction=transaction, reason=reason)
-        return Response({"message": "Dispute submitted successfully!", "dispute_id": dispute.id})
-
-"""Users should see the status of disputes they filed."""
-# class UserDisputeListView(APIView):
-#     permission_classes = [IsAuthenticated]
-
-#     def get(self, request):
-#         disputes = Dispute.objects.filter(user=request.user)
-#         serializer = DisputeSerializer(disputes, many=True)
-#         return Response(serializer.data)
-
-from rest_framework.views import APIView
-from rest_framework.response import Response
-from rest_framework.permissions import IsAuthenticated
-from .models import Dispute
-from .serializers import DisputeSerializer
-
-class UserDisputeListView(APIView):
-    permission_classes = [IsAuthenticated]
-
-    def get(self, request):
-        disputes = Dispute.objects.filter(user=request.user)
-        serializer = DisputeSerializer(disputes, many=True)
-        return Response(serializer.data)
 
 class CancelRideView(APIView):
-    """If a user cancels before the driver starts the ride: Full refund to their wallet.
-    I  If the ride is already in progress: Partial refund (admin decides the refund policy).
-       If the ride is completed: No refund, but user can dispute if there Is an issue."""
+    """If a passenger cancels before the ride starts: Full refund to their wallet.
+       If the ride is in progress: Partial refund (50% of contribution).
+       If the ride is completed: No refund, but passenger can dispute."""
     permission_classes = [IsAuthenticated]
 
-    def post(self, request,  carpoolride_id):
-        """Handle ride cancellations and process refunds."""
-        from .models import CarpoolRide  # Assuming you have a ride model
+    def post(self, request, carpoolride_id):
+        user = request.user
+        logger.info(f"User {user.id} attempting to cancel ride {carpoolride_id}")
 
+        # Fetch the ride request
         try:
-            ride = CarpoolRide.objects.get( carpoolride_id = carpoolride_id)
-        except CarpoolRide.DoesNotExist:
-            return Response({"error": "Ride not found"}, status=status.HTTP_404_NOT_FOUND)
-
-        if request.user != ride.passenger:
-            return Response({"error": "Unauthorized action"}, status=status.HTTP_403_FORBIDDEN)
-
-        # Get user's wallet
-        user_wallet, _ = UserWallet.objects.get_or_create(user=ride.passenger)
-
-        # Check ride status
-        if ride.status == "pending":
-            # Full refund since ride hasn’t started
-            refund_amount = ride.fare  
-            refund_status = "full_refund"
-        elif ride.status == "in_progress":
-            # Partial refund policy (50% for now, can be adjusted)
-            refund_amount = ride.fare * Decimal(0.5)  
-            refund_status = "partial_refund"
-        else:
-            return Response({"error": "Ride already completed. No refund possible."}, status=status.HTTP_400_BAD_REQUEST)
-
-        # Refund to user wallet
-        if refund_amount > 0:
-            user_wallet.refund_escrow(refund_amount)
-
-            reference = f"REF-{get_random_string(10)}"
-            WalletTransaction.objects.create(
-                user=ride.passenger,
-                amount=refund_amount,
-                transaction_type="ride_refund",
-                status="completed",
-                reference=reference
+            ride_request = RideRequest.objects.get(
+                ride__carpoolride_id=carpoolride_id,
+                passenger=user,
+                status="accepted"
+            )
+        except RideRequest.DoesNotExist:
+            logger.warning(f"No accepted ride request found for user {user.id} and ride {carpoolride_id}")
+            return Response(
+                {"error": "No accepted ride request found for this ride. Ensure you have an accepted booking."},
+                status=status.HTTP_404_NOT_FOUND
             )
 
-            # Mark ride as cancelled
-            ride.status = "cancelled"
-            ride.save()
+        ride = ride_request.ride
+        logger.debug(f"Ride {ride.carpoolride_id} status: {ride.status}")
 
-            return Response({
-                "message": f"Ride cancelled. {refund_status} issued.",
+        # Check ride status for refund policy
+        if ride.status == "pending":
+            refund_amount = ride.contribution_per_seat * ride_request.seats_requested
+            refund_status = "full refund"
+        elif ride.status == "in_progress":
+            refund_amount = (ride.contribution_per_seat * ride_request.seats_requested) * Decimal('0.5')
+            refund_status = "partial refund"
+        elif ride.status == "completed":
+            return Response(
+                {"error": "Ride is completed. No refund possible. Contact support for disputes."},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        else:
+            return Response(
+                {"error": f"Cannot cancel ride with status '{ride.status}'."},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        # Process refund
+        reference = None
+        if refund_amount > 0:
+            try:
+                user_wallet, _ = UserWallet.objects.get_or_create(user=user)
+                if not user_wallet.refund_escrow(refund_amount):
+                    logger.error(f"Refund failed for user {user.id}: Insufficient escrow balance")
+                    return Response(
+                        {"error": "Refund failed: Insufficient funds in escrow."},
+                        status=status.HTTP_400_BAD_REQUEST
+                    )
+                reference = f"REF-{get_random_string(10)}"
+                WalletTransaction.objects.create(
+                    user=user,
+                    amount=refund_amount,
+                    transaction_type="escrow_refund",
+                    status="completed",
+                    reference=reference
+                )
+                logger.info(f"Refund of {refund_amount} processed for user {user.id}, reference: {reference}")
+            except Exception as e:
+                logger.error(f"Refund failed for user {user.id}: {str(e)}")
+                return Response(
+                    {"error": f"Refund processing failed: {str(e)}"},
+                    status=status.HTTP_500_INTERNAL_SERVER_ERROR
+                )
+        else:
+            refund_amount = Decimal('0')
+            refund_status = "no refund"
+            logger.info(f"No refund issued for user {user.id} (amount: {refund_amount})")
+
+        # Update ride request status
+        ride_request.status = "canceled"
+        ride_request.payment_status = "refunded" if refund_amount > 0 else ride_request.payment_status
+        ride_request.save()
+        logger.debug(f"Ride request {ride_request.ridrequest_id} canceled for user {user.id}")
+
+        # Update ride
+        ride.available_seats += ride_request.seats_requested
+        ride.is_full = False
+        # if not ride.requests.filter(status="accepted").exists():
+        #     ride.status = "cancelled"
+        #     ride.is_cancelled = True
+        ride.save()
+        logger.debug(f"Ride {ride.carpoolride_id} updated: available_seats={ride.available_seats}, status={ride.status}")
+
+        # Notify the driver via WebSocket
+        notification = Notification.objects.create(
+            user=ride.driver,
+            message=f"Passenger {user.fullname} has canceled their request for ride {carpoolride_id}.",
+            carpoolride_id=str(carpoolride_id),
+            type="cancellation",
+            is_new=True
+        )
+        channel_layer = get_channel_layer()
+        try:
+            async_to_sync(channel_layer.group_send)(
+                f"user_{ride.driver.id}",
+                {
+                    "type": "send_notification",
+                    "user_id": str(ride.driver.id),
+                    "message": notification.message,
+                    "carpoolride_id": str(carpoolride_id),
+                    "notification_id": str(notification.notification_id),
+                    "notification_type": "cancellation",
+                    "time": timezone.now().isoformat()
+                }
+            )
+            logger.info(f"WebSocket notification sent to driver {ride.driver.id} for ride {carpoolride_id}")
+        except Exception as e:
+            logger.error(f"WebSocket notification failed for driver {ride.driver.id}: {str(e)}")
+            # Fallback to Firebase
+            try:
+                fcm_token = getattr(ride.driver, "fcm_token", None)
+                if fcm_token:
+                    from .utils import send_push_notification
+                    send_push_notification(
+                        token=fcm_token,
+                        title="Ride Cancellation",
+                        body=notification.message
+                    )
+                    logger.info(f"Firebase notification sent to driver {ride.driver.id}")
+            except Exception as e:
+                logger.error(f"Firebase notification failed for driver {ride.driver.id}: {str(e)}")
+
+        return Response(
+            {
+                "message": f"Ride request canceled successfully. {refund_status.title()} issued.",
                 "refund_amount": str(refund_amount),
                 "reference": reference
-            }, status=status.HTTP_200_OK)
-
-        return Response({"error": "Refund failed"}, status=status.HTTP_400_BAD_REQUEST)
-
+            },
+            status=status.HTTP_200_OK
+        )
+        
 
 
 # registeration and authentication
@@ -2644,6 +2054,23 @@ class VehicleModelListView(ListAPIView):
                 # Invalid UUID format
                 return VehicleModel.objects.none()
         return VehicleModel.objects.none()
+    
+from Taxi.serializers import VehicleSerializer
+class DriverVehicleView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        try:
+            vehicle = Vehicle.objects.get(driver=request.user)
+            serializer = VehicleSerializer(vehicle)
+            logger.info(f"Fetched vehicle {vehicle.vehicleid} for driver {request.user.id}")
+            return Response(serializer.data, status=status.HTTP_200_OK)
+        except Vehicle.DoesNotExist:
+            logger.warning(f"No vehicle found for driver {request.user.id}")
+            return Response({"error": "No vehicle registered for this driver."}, status=status.HTTP_404_NOT_FOUND)
+        except Exception as e:
+            logger.error(f"Error fetching vehicle for driver {request.user.id}: {e}")
+            return Response({"error": "An error occurred while fetching the vehicle."}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
  #registration
 from rest_framework.views import APIView
 from rest_framework.response import Response
@@ -2787,7 +2214,7 @@ class VerifyEmail(APIView):
     #login
 from django.contrib.auth import authenticate, login
 from rest_framework_simplejwt.tokens import RefreshToken
-# from .models import UserProfile
+
  
 class LoginView(APIView):
     permission_classes = [AllowAny]
@@ -2808,8 +2235,6 @@ class LoginView(APIView):
         # user = authenticate(request, email=email, password=password)
         user = authenticate(request, phone_number=phone_number, password=password)
         if user is not None:
-            # if not user.is_email_verified:
-            #     return Response({'error': 'Email not verified. Please verify your email first.'}, status=status.HTTP_403_FORBIDDEN)
             # #proceed with login
             login(request, user)
             if not hasattr(user, 'wallet'):
@@ -2836,8 +2261,6 @@ class LoginView(APIView):
             return Response({'error': 'Incorrect password.'}, status=status.HTTP_400_BAD_REQUEST)
         except CustomUser.DoesNotExist:
             return Response({'error': 'Invalid phone number.'}, status=status.HTTP_400_BAD_REQUEST)
-        # return Response({'error': 'Incorrect password.'}, status=status.HTTP_400_BAD_REQUEST)
-
 
 # login with google
 from django.http import JsonResponse
@@ -2850,13 +2273,16 @@ import json
 from django.views.decorators.csrf import csrf_exempt
 User = get_user_model()
 
+@csrf_exempt
 def google_login(request):
     GOOGLE = settings.GOOGLE_OAUTH2_CLIENT_ID
     if request.method == "POST":
         try:
-            data = json.loads(request.body)
+            data = json.loads(request.body.decode('utf-8'))
+            # logger.info(f"this is the data : {data}")
             token = data.get("token")
-            print(f"this is the data : {data}")
+            logger.info(f"this is the data : {token}")
+
 
             if not token:
                 return JsonResponse({"error": "Token is required"}, status=400)
@@ -2868,52 +2294,59 @@ def google_login(request):
                 settings.GOOGLE_OAUTH2_CLIENT_ID 
             )
             
-            print(f"this is the googl client id {GOOGLE}")
+            logger.info(f"this is the google client user {google_user}")
             if not google_user:
                 return JsonResponse({"error": "Invalid Google token"}, status=400)
 
             # Extract user info from Google
             email = google_user["email"]
-            first_name = google_user.get("given_name", "")
-            last_name = google_user.get("family_name", "")
-            picture = google_user.get("picture", "")
             google_id = google_user['sub']
+            
+            # Check if user exists by email
+            try:
+                user = CustomUser.objects.get(email=email)
+                # Update user with Google data if needed
+                if not user.google_id:  # Add google_id field to CustomUser
+                    user.google_id = google_id
+                    user.save()
+            except CustomUser.DoesNotExist:
+                # Create a new user if no match
+                return Response(
+                    {"error": "No account associated with this Google email."},
+                    status=400
+                    )
 
-            # Check if the user exists, else create a new one
-            user, created = User.objects.get_or_create(
-                email=email,
-                defaults={
-                    "first_name": first_name,
-                    "last_name": last_name,
-                    "profile_picture": picture,  # Assuming Google profile picture URL
-                    "is_active": True,
-                    "is_email_verified": True,  # Google verifies email
-                    "phone_number": f"google_{google_id[:10]}",  # Unique placeholder phone_number
-                }
-            )
 
             # Generate JWT tokens
             refresh = RefreshToken.for_user(user)
             access_token = str(refresh.access_token)
-
-            return JsonResponse({
-                "message": "Login successful",
+            response_is = {"message": "Login successful",
                 "user": {
-                    # "user_id": str(user.id),  # Ensure UUID is returned as a string
                     "id": str(user.id),
                     "email": user.email,
                     "first_name": user.first_name,
                     "last_name": user.last_name,
                     "fullname": user.fullname,
                     "phone_number": user.phone_number,
-                    # "is_seller": user.is_seller,
-                    # "address": user.address,
-                    # "city": user.city,
-                    # "country": user.country,
-                    # "postal_code": user.postal_code,
                     # "profile_picture": user.profile_picture.url if user.profile_picture else picture,
-                    # "date_of_birth": user.date_of_birth,
-                    # "gender": user.gender,
+                    "gender": user.gender,
+                    "is_driver": user.is_driver,
+                },
+                "access_token": access_token,
+                "refresh_token": str(refresh)}
+            logger.info(f"this is the response data : {response_is}")
+            
+
+            return JsonResponse({
+                "message": "Login successful",
+                "user": {
+                    "id": str(user.id),
+                    "email": user.email,
+                    "first_name": user.first_name,
+                    "last_name": user.last_name,
+                    "fullname": user.fullname,
+                    "phone_number": user.phone_number,
+                    "is_driver": user.is_driver,
                 },
                 "access_token": access_token,
                 "refresh_token": str(refresh)
@@ -2969,28 +2402,7 @@ class PasswordResetView(APIView):
             return Response({'error': 'Token expired'}, status=status.HTTP_400_BAD_REQUEST)
         except jwt.DecodeError:
             return Response({'error': 'Invalid token'}, status=status.HTTP_400_BAD_REQUEST)
-# class PasswordResetView(APIView):
-#     permission_classes = [AllowAny]
-
-#     def post(self, request):
-#         token = request.GET.get('token')
-#         if not token:
-#             return Response({'error': 'Token not provided'}, status=status.HTTP_400_BAD_REQUEST)
-#         try:
-#             payload = jwt.decode(token, settings.SECRET_KEY, algorithms=["HS256"])
-#             if payload.get('reset'):
-#                 user = CustomUser.objects.get(id=payload['id'])
-#                 serializer = PasswordResetSerializer(data=request.data)
-#                 if serializer.is_valid():
-#                     user.set_password(serializer.validated_data['password'])
-#                     user.save()
-#                     return Response({'message': 'Password reset successful'}, status=status.HTTP_200_OK)
-#             return Response({'error': 'Invalid token'}, status=status.HTTP_400_BAD_REQUEST)
-#         except jwt.ExpiredSignatureError:
-#             return Response({'error': 'Token expired'}, status=status.HTTP_400_BAD_REQUEST)
-#         except jwt.DecodeError:
-#             return Response({'error': 'Invalid token'}, status=status.HTTP_400_BAD_REQUEST)
-
+        
     #update fcm
 class UpdateFCMTokenView(APIView):
     permission_classes = [IsAuthenticated]
@@ -3000,6 +2412,39 @@ class UpdateFCMTokenView(APIView):
         user.fcm_token = request.data.get('fcm_token')
         user.save()
         return Response({"message": "FCM token updated"}, status=status.HTTP_200_OK)
+#dismiss notification
+from Taxi.models import Notification
+
+class DismissNotificationView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request, notification_id):
+        try:
+            notification = get_object_or_404(Notification, notification_id=notification_id, user=request.user)
+            if not notification.is_new:
+                logger.info(f"Notification {notification_id} already dismissed for user {request.user.id}")
+                return Response({"message": "Notification already dismissed."}, status=status.HTTP_200_OK)
+            notification.is_new = False
+            notification.save()
+            logger.info(f"Notification {notification_id} dismissed for user {request.user.id}")
+
+            # Broadcast dismissal via WebSocket
+            channel_layer = get_channel_layer()
+            group_name = f"user_{request.user.id}"
+            async_to_sync(channel_layer.group_send)(
+                group_name,
+                {
+                    "type": "notification_dismissed",
+                    "notification_id": str(notification.notification_id),
+                    "message": "Notification dismissed",
+                    "user_id": str(request.user.id),
+                }
+            )
+
+            return Response({"message": "Notification dismissed successfully."}, status=status.HTTP_200_OK)
+        except Exception as e:
+            logger.error(f"Error dismissing notification {notification_id} for user {request.user.id}: {str(e)}")
+            return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
     
     #logout
 from django.views.decorators.csrf import csrf_exempt
@@ -3049,7 +2494,8 @@ from rest_framework import status
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated
-# from .serializers import UserProfileSerializer
+from Taxi.serializers import UserProfileSerializer
+
 from rest_framework_simplejwt.tokens import RefreshToken
 from rest_framework_simplejwt.views import TokenRefreshView as SimpleJWTTokenRefreshView
 
@@ -3058,24 +2504,821 @@ class UserProfileView(APIView):
     
     def get(self, request):
         """Get user profile data"""
-        serializer = UserSerializer(request.user)
-        return Response(serializer.data)
+        serializer = UserProfileSerializer(request.user, context={'request': request})
+        preferences, _ = UserPreferences.objects.get_or_create(user=request.user)
+        preferences_serializer = UserPreferencesSerializer(preferences, context={'request': request})
+        return Response({
+            'profile': serializer.data,
+            'preferences': preferences_serializer.data
+        }, status=status.HTTP_200_OK)
     
+    def patch(self, request):
+        """Update user profile data"""
+        user = request.user
+        serializer = UserProfileSerializer(user, data=request.data, partial=True, context={'request': request})
+        
+        if serializer.is_valid():
+            serializer.save()
+            logger.info(f"this is the data {serializer.data}")
+            return Response(serializer.data, status=status.HTTP_200_OK)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
-# class UpdateProfileView(APIView):
-#     permission_classes = [IsAuthenticated]
+from Taxi.serializers import UserWalletBalanceSerializer
+class UserWalletBalanceView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        serializer = UserWalletBalanceSerializer(request.user)
+        return Response(serializer.data, status=status.HTTP_200_OK)
     
-#     def patch(self, request):
-#         """Update user profile data"""
-#         serializer = UserProfileSerializer(
-#             request.user, 
-#             data=request.data, 
-#             partial=True
-#         )
-#         if serializer.is_valid():
-#             serializer.save()
-#             return Response(serializer.data)
-#         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+    
+from Taxi.models import UserPreferences
+from Taxi.serializers import UserPreferencesSerializer
+class UpdateUserPreferencesView(APIView):
+    permission_classes = [IsAuthenticated]
 
+    def patch(self, request):
+        user = request.user
+        preferences, _ = UserPreferences.objects.get_or_create(user=user)
+        serializer = UserPreferencesSerializer(preferences, data=request.data, partial=True)
+        
+        if serializer.is_valid():
+            # Check if prefers_women_only_rides is being set to True
+            if serializer.validated_data.get('prefers_women_only_rides') and user.gender != 'Female':
+                return Response(
+                    {"error": "Only female users can prefer women-only rides"},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+            serializer.save()
+            return Response(serializer.data, status=status.HTTP_200_OK)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)    
+
+
+from Taxi.models import Message
+from Taxi.serializers import MessageSerializer
+class ChatHistoryView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request, carpoolride_id):
+        logger.info(f"Fetching chat history for ride {carpoolride_id} by user {request.user.id}")
+        try:
+            ride = CarpoolRide.objects.get(carpoolride_id=carpoolride_id)
+            is_driver = ride.driver == request.user
+            is_passenger = RideRequest.objects.filter(
+                ride=ride,
+                passenger=request.user,
+                status='accepted'
+            ).exists()
+            if not (is_driver or is_passenger):
+                logger.warning(f"User {request.user.id} not authorized for ride {carpoolride_id}")
+                return Response({'error': 'You are not authorized for this ride'}, status=status.HTTP_403_FORBIDDEN)
+            
+            messages = Message.objects.filter(ride=ride).order_by('timestamp')
+            serializer = MessageSerializer(messages, many=True)
+            logger.info(f"Returning {len(serializer.data)} messages for ride {carpoolride_id}")
+            return Response(serializer.data)
+        except CarpoolRide.DoesNotExist:
+            logger.error(f"Ride {carpoolride_id} not found")
+            return Response({'error': 'Ride not found'}, status=status.HTTP_404_NOT_FOUND)
+        except Exception as e:
+            logger.error(f"Error fetching chat history for ride {carpoolride_id}: {str(e)}")
+            return Response({'error': 'Internal server error'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+        
+
+import logging
+
+logger = logging.getLogger(__name__)
+
+class UnreadMessagesView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        try:
+            user = request.user
+            if not user.is_authenticated:
+                logger.error("Unauthenticated user attempted to access unread messages")
+                return Response({'error': 'Authentication required'}, status=status.HTTP_401_UNAUTHORIZED)
+
+            # Fetch rides where user is driver or accepted passenger
+            rides = CarpoolRide.objects.filter(
+                Q(driver=user) |
+                Q(requests__passenger=user, requests__status='accepted')
+            ).distinct()
+            logger.debug(f"Found {rides.count()} rides for user {user.id}")
+
+            unread_counts = []
+            for ride in rides:
+                # Fetch unread messages for this ride
+                messages = Message.objects.filter(
+                    ride__carpoolride_id=ride.carpoolride_id,
+                    recipient=user,
+                    status__in=['sent', 'delivered']
+                ).select_related('sender')
+                logger.debug(f"Found {messages.count()} unread messages for ride {ride.carpoolride_id}")
+
+                # Group by sender
+                sender_counts = {}
+                for message in messages:
+                    sender_id = str(message.sender.id)
+                    sender_counts[sender_id] = sender_counts.get(sender_id, 0) + 1
+
+                # Add counts to response
+                for sender_id, count in sender_counts.items():
+                    unread_counts.append({
+                        'carpoolride_id': str(ride.carpoolride_id),
+                        'sender_id': sender_id,
+                        'unread_count': count
+                    })
+
+            logger.info(f"Returning {len(unread_counts)} unread message counts for user {user.id}")
+            return Response(unread_counts, status=status.HTTP_200_OK)
+
+        except CarpoolRide.DoesNotExist:
+            logger.warning(f"No rides found for user {user.id}")
+            return Response([], status=status.HTTP_200_OK)
+        except Message.DoesNotExist:
+            logger.warning(f"No messages found for user {user.id}")
+            return Response([], status=status.HTTP_200_OK)
+        except Exception as e:
+            logger.exception(f"Error fetching unread messages for user {user.id}: {str(e)}")
+            return Response({'error': f'Internal server error: {str(e)}'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+class ChatReceiverProfileView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request, user_id):
+        try:
+            user = CustomUser.objects.get(id=user_id)
+            logger.info(f"Profile fetched for user_id={user_id}")
+            
+            
+            first_name= user.first_name
+            last_name= user.last_name
+
+            response_data = {
+                "id": str(user.id),
+                "first_name": first_name,
+                "last_name": last_name,
+                "phone_number": user.phone_number,
+            }
+            logger.info(f"Profile fetched for user_id={user_id} by user={request.user.id}")
+            return Response(response_data, status=status.HTTP_200_OK)
+        except User.DoesNotExist:
+            logger.error(f"User not found for user_id={user_id}")
+            return Response({"error": "User not found."}, status=404)
+            # raise Http404("User not found")
+        except Exception as e:
+            logger.error(f"Error fetching profile for user_id={user_id}: {str(e)}")
+            return Response({"error": "Internal server error"}, status=500)
+        
 class TokenRefreshView(SimpleJWTTokenRefreshView):
     permission_classes = [AllowAny]  # Allow anyone to refresh token
+
+# reports
+# ridehistory report
+from django.http import HttpResponse
+from Taxi.serializers import WalletTransactionSerializer, ReportSerializer
+
+
+class CustomPaginationForReport(PageNumberPagination):
+    page_size = 10
+    page_size_query_param = 'page_size'
+    max_page_size = 100
+
+class DownloadRideHistoryView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    # @cache_page(60 * 15)
+    def get(self, request):
+        user = request.user
+        month = request.query_params.get('month')
+        year = request.query_params.get('year')
+
+        rides = CarpoolRide.objects.filter(
+            Q(driver=user) | Q(requests__passenger=user),
+            is_cancelled=False
+        ).select_related('driver', 'vehicle').prefetch_related('requests__passenger').distinct().order_by('-last_updated')   #.order_by('departure_time')
+
+        filter_applied = False
+        error_message = None
+
+        if year:
+            try:
+                year = int(year)
+                rides = rides.filter(departure_time__year=year)
+                filter_applied = True
+                if month:
+                    try:
+                        month = int(month)
+                        if not (1 <= month <= 12):
+                            context = {
+                                'user': user,
+                                'rides': [],
+                                'report_generated_at': timezone.now(),
+                                'year': timezone.now().year,
+                                'filter_month': month,
+                                'filter_year': year,
+                                'error_message': 'Invalid month value. Please select a valid month.',
+                            }
+                            return HttpResponse(
+                                render_to_string('reports/ride_history.html', context),
+                                content_type='text/html'
+                            )
+                        rides = rides.filter(departure_time__month=month)
+                    except ValueError:
+                        context = {
+                            'user': user,
+                            'rides': [],
+                            'report_generated_at': timezone.now(),
+                            'year': timezone.now().year,
+                            'filter_month': month,
+                            'filter_year': year,
+                            'error_message': 'Invalid month format.',
+                        }
+                        return HttpResponse(
+                            render_to_string('reports/ride_history.html', context),
+                            content_type='text/html'
+                        )
+            except ValueError:
+                context = {
+                    'user': user,
+                    'rides': [],
+                    'report_generated_at': timezone.now(),
+                    'year': timezone.now().year,
+                    'filter_month': month,
+                    'filter_year': year,
+                    'error_message': 'Invalid year format.',
+                }
+                return HttpResponse(
+                    render_to_string('reports/ride_history.html', context),
+                    content_type='text/html'
+                )
+
+        rides_data = [
+            {
+                'carpoolride_id': str(ride.carpoolride_id),
+                'origin_label': ride.origin.get('label', 'N/A'),
+                'destination_label': ride.destination.get('label', 'N/A'),
+                'departure_time': ride.departure_time,
+                'contribution_per_seat': ride.contribution_per_seat,
+                'status': ride.status,
+            }
+            for ride in rides
+        ]
+
+        report_data = {
+            "user_id": str(user.id),
+            "ride_count": len(rides_data),
+            "format": "html",
+            "generated_at": timezone.now().strftime("%Y-%m-%d %H:%M:%S"),
+            "month": month or "all",
+            "year": year or str(timezone.now().year),
+        }
+        report = Report.objects.create(
+            user=user,
+            report_type="ride_history",
+            report_data=report_data,
+            created_at=timezone.now(),
+            file_url=None,
+        )
+
+        try:
+            context = {
+                'user': user,
+                'rides': rides_data,
+                'report_generated_at': timezone.now(),
+                'year': timezone.now().year,
+                'filter_month': month,
+                'filter_year': year,
+                'error_message': 'No rides found for the selected period.' if filter_applied and not rides_data else None,
+            }
+            html_content = render_to_string('reports/ride_history.html', context)
+            logger.info(f"Ride history report generated for user {user.id}, month={month}, year={year}")
+            return HttpResponse(html_content, content_type='text/html')
+        except Exception as e:
+            logger.error(f"Error generating ride history report for user {user.id}: {str(e)}")
+            context = {
+                'user': user,
+                'rides': [],
+                'report_generated_at': timezone.now(),
+                'year': timezone.now().year,
+                'filter_month': month,
+                'filter_year': year,
+                'error_message': 'Failed to generate report. Please try again.',
+            }
+            html_content = render_to_string('reports/ride_history.html', context)
+            return HttpResponse(html_content, content_type='text/html')
+
+
+
+# consider if formal pdf similar to how invoice are presented 
+# from reportlab.pdfgen import canvas
+# from reportlab.lib import colors
+# from reportlab.lib.pagesizes import letter
+# from reportlab.platypus import SimpleDocTemplate, Table, TableStyle
+# import csv
+# from io import BytesIO
+# class DownloadRideHistoryView(APIView):
+#     permission_classes = [IsAuthenticated]
+
+#     def get(self, request, format='pdf'):
+#         user = request.user
+#         rides = RideHistoryView().get_queryset().filter(Q(driver=user) | Q(requests__passenger=user))
+
+#         if not rides:
+#             logger.warning(f"No rides found for user {user.id} in DownloadRideHistoryView")
+#             return Response({"error": "No ride history available"}, status=404)
+
+#         # Store report in Report model
+#         report_data = {
+#             "user_id": user.id,
+#             "ride_count": rides.count(),
+#             "format": format,
+#             "generated_at": timezone.now().strftime("%Y-%m-%d %H:%M:%S"),
+#         }
+#         report = Report.objects.create(
+#             user=user,
+#             report_type="ride_history",
+#             report_data=report_data,
+#             created_at=timezone.now(),
+#             file_url=None,  # Update with actual file URL if stored
+#         )
+
+#         try:
+#             if format == 'pdf':
+#                 buffer = BytesIO()
+#                 doc = SimpleDocTemplate(buffer, pagesize=letter)
+#                 elements = []
+
+#                 # Create table data
+#                 data = [['Ride ID', 'Origin', 'Destination', 'Departure Time', 'Fare']]
+#                 for ride in rides:
+#                     data.append([
+#                         ride.carpoolride_id,
+#                         ride.origin.get('label', 'N/A'),
+#                         ride.destination.get('label', 'N/A'),
+#                         str(ride.departure_time),
+#                         f"KES {ride.contribution_per_seat}",
+#                     ])
+
+#                 # Create table
+#                 table = Table(data)
+#                 table.setStyle(TableStyle([
+#                     ('BACKGROUND', (0, 0), (-1, 0), colors.grey),
+#                     ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
+#                     ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
+#                     ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+#                     ('FONTSIZE', (0, 0), (-1, 0), 12),
+#                     ('BOTTOMPADDING', (0, 0), (-1, 0), 12),
+#                     ('BACKGROUND', (0, 1), (-1, -1), colors.beige),
+#                     ('GRID', (0, 0), (-1, -1), 1, colors.black),
+#                 ]))
+#                 elements.append(table)
+
+#                 # Build PDF
+#                 doc.build(elements)
+#                 buffer.seek(0)
+#                 response = HttpResponse(buffer, content_type='application/pdf')
+#                 response['Content-Disposition'] = f'attachment; filename="ride_history_{user.id}.pdf"'
+#                 logger.info(f"Ride history PDF generated for user {user.id}")
+#                 return response
+
+#             elif format == 'csv':
+#                 response = HttpResponse(content_type='text/csv')
+#                 response['Content-Disposition'] = f'attachment; filename="ride_history_{user.id}.csv"'
+#                 writer = csv.writer(response)
+#                 writer.writerow(['Ride ID', 'Origin', 'Destination', 'Departure Time', 'Fare'])
+#                 for ride in rides:
+#                     writer.writerow([
+#                         ride.carpoolride_id,
+#                         ride.origin.get('label', 'N/A'),
+#                         ride.destination.get('label', 'N/A'),
+#                         ride.departure_time,
+#                         ride.contribution_per_seat,
+#                     ])
+#                 logger.info(f"Ride history CSV generated for user {user.id}")
+#                 return response
+
+#             else:
+#                 logger.error(f"Invalid format requested: {format}")
+#                 return Response({"error": "Invalid format"}, status=400)
+
+#         except Exception as e:
+#             logger.error(f"Error generating ride history report for user {user.id}: {str(e)}")
+#             return Response({"error": "Failed to generate report"}, status=500)
+
+
+from rest_framework.views import APIView
+from rest_framework.response import Response
+from rest_framework.permissions import IsAuthenticated
+from django.db.models import Sum
+from datetime import datetime
+class PaymentReceiptView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        user = request.user
+        month = request.query_params.get('month')
+        year = request.query_params.get('year')
+
+        transactions = WalletTransaction.objects.filter(
+            Q(user=user) | Q(recipient=user),
+            status="completed",
+            transaction_type__in=["escrow_hold", "transfer", "ride_payment", "deposit", "escrow_refund" ]
+        ).select_related('user', 'recipient').distinct().order_by('-created_at')
+        logger.info(f"these are the transactions found for this user's {user.id} paymentment receipt: {transactions} ")
+        filter_applied = False
+        error_message = None
+
+        if year:
+            try:
+                year = int(year)
+                transactions = transactions.filter(created_at__year=year)
+                filter_applied = True
+                if month:
+                    try:
+                        month = int(month)
+                        if not (1 <= month <= 12):
+                            context = {
+                                'user': user,
+                                'transactions': [],
+                                'report_generated_at': timezone.now(),
+                                'year': timezone.now().year,
+                                'filter_month': month,
+                                'filter_year': year,
+                                'error_message': 'Invalid month value. Please select a valid month.',
+                            }
+                            return HttpResponse(
+                                render_to_string('reports/payment_receipt.html', context),
+                                content_type='text/html'
+                            )
+                        transactions = transactions.filter(created_at__month=month)
+                    except ValueError:
+                        context = {
+                            'user': user,
+                            'transactions': [],
+                            'report_generated_at': timezone.now(),
+                            'year': timezone.now().year,
+                            'filter_month': month,
+                            'filter_year': year,
+                            'error_message': 'Invalid month format.',
+                        }
+                        return HttpResponse(
+                            render_to_string('reports/payment_receipt.html', context),
+                            content_type='text/html'
+                        )
+            except ValueError:
+                context = {
+                    'user': user,
+                    'transactions': [],
+                    'report_generated_at': timezone.now(),
+                    'year': timezone.now().year,
+                    'filter_month': month,
+                    'filter_year': year,
+                    'error_message': 'Invalid year format.',
+                }
+                return HttpResponse(
+                    render_to_string('reports/payment_receipt.html', context),
+                    content_type='text/html'
+                )
+        SPENDING_TYPE_LABELS = {
+            "escrow_hold": "Ride Payment",
+            "transfer": "Friend Transfer",
+            "escrow_refund": "Refund",
+            "deposit":"Deposit",
+            "ride_payment": "Ride Payment"
+            }
+
+        transactions_data = [
+            {
+                'transaction_id': str(transaction.walletTransactionid),
+                'amount': transaction.amount,
+                'spending_type': SPENDING_TYPE_LABELS.get(transaction.transaction_type, "Other"),
+                'transaction_type': transaction.transaction_type or 'n/a',
+                'reference': transaction.reference or 'N/A',
+                'sender_name': transaction.sender_name or 'N/A',
+                'recipient_name': transaction.recipient_name or 'Credit',
+                'created_at': transaction.created_at,
+                'status': transaction.status,
+                'ride_id': getattr(transaction, 'ride_id', 'N/A'),  # Handle missing ride_id
+            }
+            for transaction in transactions
+        ]
+        logger.info(f"this is what transaction data is {transactions_data}")
+
+        report_data = {
+            "user_id": str(user.id),
+            "transaction_count": len(transactions_data),
+            "format": "html",
+            "generated_at": timezone.now().strftime("%Y-%m-%d %H:%M:%S"),
+            "month": month or "all",
+            "year": year or str(timezone.now().year),
+        }
+        report = Report.objects.create(
+            user=user,
+            report_type="payment_receipt",
+            report_data=report_data,
+            created_at=timezone.now(),
+            file_url=None,
+        )
+
+        try:
+            context = {
+                'user': user,
+                'transactions': transactions_data,
+                'report_generated_at': timezone.now(),
+                'year': timezone.now().year,
+                'filter_month': month,
+                'filter_year': year,
+                'error_message': 'No payment receipts found for the selected period.' if filter_applied and not transactions_data else None,
+            }
+            html_content = render_to_string('reports/payment_receipt.html', context)
+            logger.info(f"Payment receipt report generated for user {user.id}, month={month}, year={year}")
+            return HttpResponse(html_content, content_type='text/html')
+        except Exception as e:
+            logger.error(f"Error generating payment receipt report for user {user.id}: {str(e)}")
+            context = {
+                'user': user,
+                'transactions': [],
+                'report_generated_at': timezone.now(),
+                'year': timezone.now().year,
+                'filter_month': month,
+                'filter_year': year,
+                'error_message': 'Failed to generate report. Please try again.',
+            }
+            html_content = render_to_string('reports/payment_receipt.html', context)
+            return HttpResponse(html_content, content_type='text/html')
+class PassengerSpendingView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    # @cache_page(60 * 15)
+    def get(self, request):
+        user = request.user
+        month = request.query_params.get('month')
+        year = request.query_params.get('year')
+        
+        transactions = WalletTransaction.objects.filter(
+            user=user,
+            status="completed",
+            transaction_type__in=["escrow_hold", "transfer", "ride_payment", "deposit", "escrow_refund" ]
+            
+        ).select_related('user', 'recipient').distinct().order_by("-created_at")
+        
+        if year:
+            try:
+                year = int(year)
+                transactions = transactions.filter(created_at__year=year)
+                filter_applied = True
+                if month:
+                    try:
+                        month = int(month)
+                        if not (1 <= month <= 12):
+                            context = {
+                                'user': user,
+                                'transactions': [],
+                                'report_generated_at': timezone.now(),
+                                'year': timezone.now().year,
+                                'filter_month': month,
+                                'filter_year': year,
+                                'error_message': 'Invalid month value. Please select a valid month.',
+                            }
+                            return HttpResponse(
+                                render_to_string('reports/payment_receipt.html', context),
+                                content_type='text/html'
+                            )
+                        transactions = transactions.filter(created_at__month=month)
+                    except ValueError:
+                        context = {
+                            'user': user,
+                            'transactions': [],
+                            'report_generated_at': timezone.now(),
+                            'year': timezone.now().year,
+                            'filter_month': month,
+                            'filter_year': year,
+                            'error_message': 'Invalid month format.',
+                        }
+                        return HttpResponse(
+                            render_to_string('reports/payment_receipt.html', context),
+                            content_type='text/html'
+                        )
+            except ValueError:
+                context = {
+                    'user': user,
+                    'transactions': [],
+                    'report_generated_at': timezone.now(),
+                    'year': timezone.now().year,
+                    'filter_month': month,
+                    'filter_year': year,
+                    'error_message': 'Invalid year format.',
+                }
+                return HttpResponse(
+                    render_to_string('reports/payment_receipt.html', context),
+                    content_type='text/html'
+                )
+        SPENDING_TYPE_LABELS = {
+            "escrow_hold": "Ride Payment",
+            "transfer": "Friend Transfer",
+            "escrow_refund": "Refund",
+            "deposit":"Deposit",
+            "ride_payment": "Ride Payment"
+            }
+
+        spending_data = [
+            {
+                'transaction_id': str(transaction.walletTransactionid),
+                'spending_type': SPENDING_TYPE_LABELS.get(transaction.transaction_type, "Other"),
+                'amount': transaction.amount,
+                'trans_type':transaction.transaction_type,
+                'reference': transaction.reference,
+                'recipient_name': transaction.recipient_name or 'Credit',
+                'created_at': transaction.created_at,   
+            }
+            for transaction in transactions
+        ]
+
+        report_data = {
+            "user_id": str(user.id),
+            "transaction_count": len(spending_data),
+            "format": "html",
+            "generated_at": timezone.now().strftime("%Y-%m-%d %H:%M:%S"),
+        }
+        report = Report.objects.create(
+            user=user,
+            report_type="passenger_spending",
+            report_data=report_data,
+            created_at=timezone.now(),
+            file_url=None,
+        )
+
+        try:
+            context = {
+                'user': user,
+                'spending': spending_data,
+                'report_generated_at': timezone.now(),
+                'year': timezone.now().year,
+            }
+            html_content = render_to_string('reports/passenger_spending.html', context)
+            logger.info(f"Passenger spending report generated for user {user.id}")
+            return HttpResponse(html_content, content_type='text/html')
+        except Exception as e:
+            logger.error(f"Error generating passenger spending report for user {user.id}: {str(e)}")
+            return Response({"error": "Failed to generate report"}, status=500)
+class DriverEarningsView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    # @cache_page(60 * 15)
+    def get(self, request):
+        user = request.user
+        if not user.is_driver:
+            return Response({"error": "Only drivers can access earnings report"}, status=403)
+        
+        month = request.query_params.get('month')
+        year = request.query_params.get('year')
+        
+        rides = CarpoolRide.objects.filter(
+            driver=user,
+            status="completed",
+            is_cancelled=False
+        ).select_related('driver').prefetch_related('requests__passenger')
+        
+        if year:
+            try:
+                year = int(year)
+                # transactions = transactions.filter(created_at__year=year)
+                rides = rides.filter(departure_time__year=year)
+                filter_applied = True
+                if month:
+                    try:
+                        month = int(month)
+                        if not (1 <= month <= 12):
+                            context = {
+                                'user': user,
+                                'rides': [],
+                                'report_generated_at': timezone.now(),
+                                'year': timezone.now().year,
+                                'filter_month': month,
+                                'filter_year': year,
+                                'error_message': 'Invalid month value. Please select a valid month.',
+                            }
+                            return HttpResponse(
+                                render_to_string('reports/payment_receipt.html', context),
+                                content_type='text/html'
+                            )
+                        # transactions = transactions.filter(created_at__month=month)
+                        rides = rides.filter(departure_time__month=month)
+                    except ValueError:
+                        context = {
+                            'user': user,
+                            'rides': [],
+                            'report_generated_at': timezone.now(),
+                            'year': timezone.now().year,
+                            'filter_month': month,
+                            'filter_year': year,
+                            'error_message': 'Invalid month format.',
+                        }
+                        return HttpResponse(
+                            render_to_string('reports/payment_receipt.html', context),
+                            content_type='text/html'
+                        )
+            except ValueError:
+                context = {
+                    'user': user,
+                    'rides': [],
+                    'report_generated_at': timezone.now(),
+                    'year': timezone.now().year,
+                    'filter_month': month,
+                    'filter_year': year,
+                    'error_message': 'Invalid year format.',
+                }
+                return HttpResponse(
+                    render_to_string('reports/payment_receipt.html', context),
+                    content_type='text/html'
+                )
+
+        earnings_data = []
+
+        for ride in rides:
+            accepted_requests = ride.requests.filter(status="accepted", payment_status="paid").select_related("passenger")
+            passengers = [
+                {
+                    "name": req.passenger.fullname,
+                    "phone": req.passenger.phone_number,
+                    "seats_booked": req.seats_requested,
+                    "amount_paid": float(ride.contribution_per_seat) * req.seats_requested,
+                }
+                for req in accepted_requests
+            ]
+
+            earnings_data.append({
+                "carpoolride_id": str(ride.carpoolride_id),
+                "origin": ride.origin.get("label", "Unknown"),
+                "destination": ride.destination.get("label", "Unknown"),
+                "total_amount_paid": ride.total_amount_paid,
+                "departure_time": ride.departure_time,
+                "passenger_count": accepted_requests.count(),
+                "passenger_breakdown": passengers,
+            })
+        report_data = {
+            "user_id": str(user.id),
+            "ride_count": len(earnings_data),
+            "format": "html",
+            "generated_at": timezone.now().strftime("%Y-%m-%d %H:%M:%S"),
+        }
+        report = Report.objects.create(
+            user=user,
+            report_type="driver_earnings",
+            report_data=report_data,
+            created_at=timezone.now(),
+            file_url=None,
+        )
+
+        try:
+            context = {
+                'user': user,
+                'earnings': earnings_data,
+                'report_generated_at': timezone.now(),
+                'year': timezone.now().year,
+            }
+            html_content = render_to_string('reports/driver_earnings.html', context)
+            logger.info(f"Driver earnings report generated for user {user.id}")
+            return HttpResponse(html_content, content_type='text/html')
+        except Exception as e:
+            logger.error(f"Error generating driver earnings report for user {user.id}: {str(e)}")
+            return Response({"error": "Failed to generate report"}, status=500)
+
+class UserReportsView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        report_type = request.query_params.get('report_type')
+        report_views = {
+            'ride_history': RideHistoryView.as_view(),
+            'payment_receipt': PaymentReceiptView.as_view(),
+            'driver_earnings': DriverEarningsView.as_view(),
+            'passenger_spending': PassengerSpendingView.as_view(),
+        }
+
+        if report_type not in report_views:
+            logger.warning(f"Invalid report_type requested: {report_type} by user {request.user.id}")
+            return Response({"error": "Invalid report type"}, status=400)
+
+        try:
+            # Store report access in Report model
+            Report.objects.create(
+                user=request.user,
+                report_type=report_type,
+                report_data={"report_accessed": report_type, "generated_at": timezone.now().strftime("%Y-%m-%d %H:%M:%S")},
+                created_at=timezone.now(),
+                file_url=None,
+            )
+
+            # Call the appropriate view
+            view = report_views[report_type]
+            response = view(request._request)
+            logger.info(f"Report {report_type} accessed by user {request.user.id}")
+            return response
+
+        except Exception as e:
+            logger.error(f"Error accessing report {report_type} for user {request.user.id}: {str(e)}")
+            return Response({"error": "Failed to generate report"}, status=500)

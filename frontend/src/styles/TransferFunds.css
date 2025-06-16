@@ -1,0 +1,116 @@
+.transfer-wrapper {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  min-height: 100vh;
+  background: linear-gradient(135deg, #f0f4f8 0%, #d9e2ec 100%);
+}
+
+.transfer-form {
+  max-width: 400px;
+  width: 100%;
+  padding: 20px;
+  background-color: #fff;
+  border-radius: 8mm;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+}
+
+.transfer-form h2 {
+  text-align: center;
+  font-size: 2em;
+  margin-bottom: 10px;
+  color: #333;
+}
+
+.instructions {
+  text-align: center;
+  font-size: 1em;
+  color: #666;
+  margin-bottom: 20px;
+}
+
+.transfer-form .error {
+  color: #dc3545;
+  text-align: center;
+  margin-bottom: 15px;
+  font-size: 0.9em;
+}
+
+.transfer-form .success {
+  color: #28a745;
+  text-align: center;
+  margin-bottom: 15px;
+  font-size: 0.9em;
+}
+
+.transfer-form form {
+  display: flex;
+  flex-direction: column;
+  gap: 15px;
+}
+
+.form-group {
+  display: flex;
+  flex-direction: divisa;
+}
+
+.form-group label {
+  font-size: 0.9em;
+  color: #333;
+  margin-bottom: 5px;
+}
+
+.form-group input {
+  padding: 10px;
+  font-size: 1em;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.form-group input:focus {
+  border-color: #007bff;
+  outline: none;
+}
+
+.transfer-form button {
+  padding: 12px;
+  font-size: 1em;
+  background-color: #007bff;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: background-color 0.2s;
+}
+
+.transfer-form button:hover {
+  background-color: #0056b3;
+}
+
+.transfer-form button:disabled {
+  background-color: #6c757d;
+  cursor: not-allowed;
+}
+
+@media (max-width: 600px) {
+  .transfer-form {
+    padding: 15px;
+    max-width: 90%;
+  }
+
+  .transfer-form h2 {
+    font-size: 1.5em;
+  }
+
+  .instructions {
+    font-size: 0.9em;
+  }
+
+  .form-group label,
+  .form-group input,
+  .transfer-form button {
+    font-size: 0.9em;
+  }
+}

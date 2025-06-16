@@ -1,0 +1,937 @@
+.profile-wrapper {
+  max-width: 1200px;
+  margin: 4rem auto 0;
+  padding: 2rem;
+  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+}
+
+/* .profile-header {
+  text-align: center;
+  margin-bottom: 2rem;
+} */
+.profile-header {
+  text-align: center;
+  /* margin-bottom: 2rem;*/
+   margin: 0 auto 2rem;
+  padding: 1.5rem;
+  background: #fff;
+  border-radius: 12px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+  width: 100%;
+  max-width: 400px;
+}
+
+
+.profile-picture {
+  /* width: 90px; */
+  width: auto;
+  height: 100px;
+  /* border-radius: 50%; */
+  border-radius: 8px;
+  object-fit: cover;
+  margin-bottom: 1rem;
+}
+/* .profile-header img {
+  max-height: 100px;
+  width: auto;
+  border-radius: 8px;
+} */
+
+.update-profile-button {
+  margin-top: 1rem;
+  padding: 0.6rem 1.2rem;
+  background-color: #007bff;
+  color: white;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+}
+
+.update-profile-button:hover {
+  background-color: #0056b3;
+}
+
+.profile-content {
+  display: flex;
+  flex-direction: row;
+  gap: 2rem;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  align-items: flex-start;
+}
+
+.profile-section {
+  flex: 1;
+  min-width: 300px;
+  background-color: #ffffff;
+  padding: 1.5rem;
+  border-radius: 10px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+}
+
+.wallet-earnings-wrapper {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+  flex: 1;
+}
+
+.wallet-buttons {
+  display: flex;
+  gap: 1rem;
+  margin-top: 1rem;
+}
+
+.wallet-buttons button {
+  padding: 0.5rem 1rem;
+  background-color: #28a745;
+  color: white;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+}
+
+.wallet-buttons button:hover {
+  background-color: #218838;
+}
+
+.vehicle-photo {
+  width: 100%;
+  max-width: 200px;
+  border-radius: 6px;
+  margin-top: 0.5rem;
+}
+
+/* Responsive adjustments */
+@media (max-width: 900px) {
+  .profile-content {
+    flex-direction: column;
+  }
+
+  .wallet-buttons {
+    flex-direction: column;
+  }
+
+  .wallet-buttons button {
+    width: 100%;
+  }
+}
+
+
+
+
+
+/* .profile-wrapper {
+  width: 100%;
+  min-height: 100vh;
+  margin: 0;
+  padding: 2rem;
+  background: linear-gradient(135deg, #e6f0fa 0%, #f0f8ff 100%);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.profile-header {
+  text-align: center;
+  margin-bottom: 2rem;
+  padding: 1.5rem;
+  background: #fff;
+  border-radius: 12px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+  width: 100%;
+  max-width: 400px;
+}
+
+.profile-picture {
+  width: 120px;
+  height: 120px;
+  border-radius: 50%;
+  object-fit: cover;
+  margin: 0 auto 1rem;
+  border: 4px solid #007bff;
+}
+
+.profile-header h2 {
+  font-size: 1.8rem;
+  color: #333;
+  margin: 0.5rem 0;
+  font-weight: 600;
+}
+
+.profile-header p {
+  font-size: 1rem;
+  color: #555;
+  margin: 0.3rem 0;
+  line-height: 1.5;
+}
+
+.update-profile-button {
+  padding: 0.75rem 1.5rem;
+  background-color: #007bff;
+  color: #fff;
+  border: none;
+  border-radius: 4px;
+  font-size: 1rem;
+  cursor: pointer;
+  margin-top: 1rem;
+  transition: background-color 0.3s, transform 0.2s;
+}
+
+.update-profile-button:hover {
+  background-color: #0056b3;
+  transform: translateY(-2px);
+}
+
+.profile-content {
+  display: flex;
+  justify-content: space-between;
+  width: 100%;
+  max-width: 1200px;
+  gap: 2rem;
+}
+
+.profile-section {
+  flex: 1;
+  margin-bottom: 2rem;
+  padding: 1.5rem;
+  background: #fff;
+  border-radius: 12px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+  transition: transform 0.3s;
+}
+
+.profile-section:hover {
+  transform: translateY(-5px);
+}
+
+.driver-section h3, .ride-history h3, .wallet-section h3, .earnings-section h3 {
+  font-size: 1.4rem;
+  color: #333;
+  margin-bottom: 1rem;
+  border-bottom: 2px solid #007bff;
+  padding-bottom: 0.5rem;
+}
+
+.vehicle-info {
+  margin-top: 1rem;
+  padding: 1rem;
+  background: #f9f9f9;
+  border-radius: 8px;
+}
+
+.vehicle-info h4 {
+  font-size: 1.2rem;
+  color: #555;
+  margin-bottom: 0.5rem;
+}
+
+.vehicle-info p {
+  font-size: 0.9rem;
+  color: #555;
+  margin: 0.3rem 0;
+  display: flex;
+  align-items: center;
+}
+
+.vehicle-photo {
+  max-width: 200px;
+  border-radius: 4px;
+  margin-top: 0.5rem;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.1);
+}
+
+.wallet-section button {
+  padding: 0.75rem 1.5rem;
+  background-color: #007bff;
+  color: #fff;
+  border: none;
+  border-radius: 4px;
+  font-size: 1rem;
+  cursor: pointer;
+  margin: 0.5rem 0;
+  transition: background-color 0.3s, transform 0.2s;
+}
+
+.wallet-section button:hover {
+  background-color: #0056b3;
+  transform: translateY(-2px);
+}
+
+.wallet-buttons {
+  display: flex;
+  gap: 10px;
+  justify-content: center;
+  margin-top: 1rem;
+}
+
+.wallet-buttons button {
+  padding: 10px 20px;
+  font-size: 1em;
+  background-color: #007bff;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: background-color 0.2s, transform 0.2s;
+}
+
+.wallet-buttons button:hover {
+  background-color: #0056b3;
+  transform: translateY(-2px);
+}
+
+.wallet-earnings {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+@media (max-width: 768px) {
+  .profile-content {
+    flex-direction: column;
+    align-items: center;
+  }
+
+  .profile-section {
+    width: 100%;
+    max-width: 400px;
+  }
+} */
+
+
+/* .profile-wrapper {
+  width: 100%;
+  min-height: 100vh;
+  margin: 0;
+  padding: 2rem;
+  background: linear-gradient(135deg, #e6f0fa 0%, #f0f8ff 100%);
+  border-radius: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.profile-header {
+  text-align: center;
+  margin-bottom: 2rem;
+  padding: 1.5rem;
+  background: #fff;
+  border-radius: 12px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+  width: 100%;
+  max-width: 400px;
+}
+
+.profile-picture {
+  width: 120px;
+  height: 120px;
+  border-radius: 50%;
+  object-fit: cover;
+  margin: 0 auto 1rem;
+  border: 4px solid #007bff;
+}
+
+.profile-header h2 {
+  font-size: 1.8rem;
+  color: #333;
+  margin: 0.5rem 0;
+  font-weight: 600;
+}
+
+.profile-header p {
+  font-size: 1rem;
+  color: #555;
+  margin: 0.3rem 0;
+  line-height: 1.5;
+}
+
+.update-profile-button {
+  padding: 0.75rem 1.5rem;
+  background-color: #007bff;
+  color: #fff;
+  border: none;
+  border-radius: 4px;
+  font-size: 1rem;
+  cursor: pointer;
+  margin-top: 1rem;
+  transition: background-color 0.3s, transform 0.2s;
+}
+
+.update-profile-button:hover {
+  background-color: #0056b3;
+  transform: translateY(-2px);
+}
+
+.driver-section, .ride-history, .wallet-section, .earnings-section {
+  margin-bottom: 2rem;
+  padding: 1.5rem;
+  background: #fff;
+  border-radius: 12px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+  width: 100%;
+  max-width: 600px;
+  transition: transform 0.3s;
+}
+
+.driver-section:hover, .ride-history:hover, .wallet-section:hover, .earnings-section:hover {
+  transform: translateY(-5px);
+}
+
+.driver-section h3, .ride-history h3, .wallet-section h3, .earnings-section h3 {
+  font-size: 1.4rem;
+  color: #333;
+  margin-bottom: 1rem;
+  border-bottom: 2px solid #007bff;
+  padding-bottom: 0.5rem;
+}
+
+.vehicle-info {
+  margin-top: 1rem;
+  padding: 1rem;
+  background: #f9f9f9;
+  border-radius: 8px;
+}
+
+.vehicle-info h4 {
+  font-size: 1.2rem;
+  color: #555;
+  margin-bottom: 0.5rem;
+}
+
+.vehicle-info p {
+  font-size: 0.9rem;
+  color: #555;
+  margin: 0.3rem 0;
+  display: flex;
+  align-items: center;
+}
+
+.vehicle-photo {
+  max-width: 200px;
+  border-radius: 4px;
+  margin-top: 0.5rem;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.1);
+}
+
+.wallet-section button {
+  padding: 0.75rem 1.5rem;
+  background-color: #007bff;
+  color: #fff;
+  border: none;
+  border-radius: 4px;
+  font-size: 1rem;
+  cursor: pointer;
+  margin: 0.5rem;
+  transition: background-color 0.3s, transform 0.2s;
+}
+
+.wallet-section button:hover {
+  background-color: #0056b3;
+  transform: translateY(-2px);
+}
+
+.wallet-buttons {
+  display: flex;
+  gap: 10px;
+  justify-content: center;
+  margin-top: 1rem;
+}
+
+.wallet-buttons button {
+  padding: 10px 20px;
+  font-size: 1em;
+  background-color: #007bff;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: background-color 0.2s, transform 0.2s;
+}
+
+.wallet-buttons button:hover {
+  background-color: #0056b3;
+  transform: translateY(-2px);
+}
+
+@media (max-width: 480px) {
+  .profile-wrapper {
+    padding: 1rem;
+  }
+
+  .profile-header {
+    padding: 1rem;
+    max-width: 100%;
+  }
+
+  .profile-picture {
+    width: 100px;
+    height: 100px;
+  }
+
+  .update-profile-button, .wallet-section button, .wallet-buttons button {
+    width: 100%;
+    margin: 0.5rem 0;
+  }
+
+  .driver-section, .ride-history, .wallet-section, .earnings-section {
+    padding: 1rem;
+    max-width: 100%;
+  }
+} */
+
+
+
+
+/* 
+  max-width: 800px;
+  margin: 2rem auto;
+  padding: 1rem;
+  background-color: #f9f9f9;
+  border-radius: 8px;
+}
+
+.profile-header {
+  text-align: center;
+  margin-bottom: 2rem;
+}
+
+.profile-picture {
+  width: 120px;
+  height: 120px;
+  border-radius: 50%;
+  object-fit: cover;
+  margin: 0 auto 1rem;
+}
+
+.profile-header h2 {
+  font-size: 1.8rem;
+  color: #333;
+  margin: 0.5rem 0;
+}
+
+.profile-header p {
+  font-size: 1rem;
+  color: #555;
+  margin: 0.3rem 0;
+}
+
+.update-profile-button {
+  padding: 0.75rem 1.5rem;
+  background-color: #007bff;
+  color: #fff;
+  border: none;
+  border-radius: 4px;
+  font-size: 1rem;
+  cursor: pointer;
+  margin-top: 1rem;
+  transition: background-color 0.3s;
+}
+
+.update-profile-button:hover {
+  background-color: #0056b3;
+}
+
+.driver-section, .ride-history, .wallet-section, .earnings-section {
+  margin-bottom: 2rem;
+  padding: 1rem;
+  background-color: #fff;
+  border-radius: 6px;
+  border: 1px solid #ddd;
+}
+
+.driver-section h3, .ride-history h3, .wallet-section h3, .earnings-section h3 {
+  font-size: 1.4rem;
+  color: #333;
+  margin-bottom: 1rem;
+}
+
+.vehicle-info {
+  margin-top: 1rem;
+}
+
+.vehicle-info h4 {
+  font-size: 1.2rem;
+  color: #555;
+}
+
+.vehicle-info p {
+  font-size: 0.9rem;
+  color: #555;
+  margin: 0.3rem 0;
+}
+
+.vehicle-photo {
+  max-width: 200px;
+  border-radius: 4px;
+  margin-top: 0.5rem;
+}
+
+.wallet-section button {
+  padding: 0.75rem 1.5rem;
+  background-color: #007bff;
+  color: #fff;
+  border: none;
+  border-radius: 4px;
+  font-size: 1rem;
+  cursor: pointer;
+  margin: 0.5rem;
+  transition: background-color 0.3s;
+}
+
+.wallet-section button:hover {
+  background-color: #0056b3;
+}
+
+@media (max-width: 480px) {
+  .profile-wrapper {
+    margin: 1rem;
+    padding: 1rem;
+  }
+
+  .profile-header h2 {
+    font-size: 1.5rem;
+  }
+
+  .profile-picture {
+    width: 100px;
+    height: 100px;
+  }
+
+  .update-profile-button, .wallet-section button {
+    width: 100%;
+    margin: 0.5rem 0;
+  }
+}
+
+.wallet-buttons {
+  display: flex;
+  gap: 10px;
+  justify-content: center;
+}
+
+.wallet-buttons button {
+  padding: 10px 20px;
+  font-size: 1em;
+  background-color: #007bff;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: background-color 0.2s;
+}
+
+.wallet-buttons button:hover {
+  background-color: #0056b3;
+} 
+ 
+  */
+ /* .profile-container {
+  max-width: 600px;
+  margin: 2rem auto;
+  padding: 2rem;
+  background-color: #f9f9f9;
+  border-radius: 8px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.profile-container h2 {
+  font-size: 1.8rem;
+  color: #333;
+  margin-bottom: 1.5rem;
+  text-align: center;
+}
+
+.alert {
+  padding: 1rem;
+  margin-bottom: 1rem;
+  border-radius: 4px;
+  font-size: 0.9rem;
+}
+
+.alert.error {
+  background-color: #ffe6e6;
+  color: #cc0000;
+}
+
+.alert.success {
+  background-color: #e6ffe6;
+  color: #006600;
+}
+
+.profile-form {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+.form-section {
+  background-color: #fff;
+  padding: 1.5rem;
+  border-radius: 6px;
+  border: 1px solid #ddd;
+}
+
+.form-section h3 {
+  font-size: 1.2rem;
+  color: #555;
+  margin-bottom: 1rem;
+}
+
+.form-group {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.form-group label {
+  font-size: 0.9rem;
+  color: #333;
+  font-weight: 500;
+}
+
+.form-group input[type="tel"] {
+  padding: 0.75rem;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+  font-size: 0.9rem;
+  transition: border-color 0.3s;
+}
+
+.form-group input[type="tel"]:focus {
+  border-color: #007bff;
+  outline: none;
+}
+
+.form-group input[type="file"] {
+  padding: 0.5rem 0;
+}
+
+.read-only {
+  font-size: 0.9rem;
+  color: #555;
+  background-color: #f0f0f0;
+  padding: 0.75rem;
+  border-radius: 4px;
+  border: 1px solid #ddd;
+}
+
+.profile-preview {
+  width: 100px;
+  height: 100px;
+  object-fit: cover;
+  border-radius: 50%;
+  margin-top: 0.5rem;
+}
+
+.checkbox-group {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.checkbox-group input[type="checkbox"] {
+  width: 1rem;
+  height: 1rem;
+}
+
+.checkbox-group label {
+  font-size: 0.9rem;
+  color: #333;
+}
+
+.checkbox-group .disabled-text {
+  font-size: 0.8rem;
+  color: #888;
+}
+
+.vehicle-update-section {
+  margin-top: 1rem;
+}
+
+.vehicle-update-section .form-group {
+  margin-bottom: 1rem;
+}
+
+.vehicle-update-section .vehicle-photo-preview {
+  max-width: 200px;
+  border-radius: 4px;
+  margin-top: 0.5rem;
+}
+
+.profile-form button {
+  padding: 0.75rem;
+  background-color: #007bff;
+  color: #fff;
+  border: none;
+  border-radius: 4px;
+  font-size: 1rem;
+  cursor: pointer;
+  transition: background-color 0.3s;
+}
+
+.profile-form button:hover {
+  background-color: #0056b3;
+}
+
+.profile-form button:disabled {
+  background-color: #ccc;
+  cursor: not-allowed;
+}
+
+@media (max-width: 480px) {
+  .profile-container {
+    padding: 1rem;
+    margin: 1rem;
+  }
+
+  .profile-container h2 {
+    font-size: 1.5rem;
+  }
+
+  .form-section {
+    padding: 1rem;
+  }
+} 
+
+/* from here is theold one 
+ .profile-wrapper {
+  max-width: 800px;
+  margin: 2rem auto;
+  padding: 1rem;
+  background-color: #f9f9f9;
+  border-radius: 8px;
+}
+
+.profile-header {
+  text-align: center;
+  margin-bottom: 2rem;
+}
+
+.profile-picture {
+  width: 120px;
+  height: 120px;
+  border-radius: 50%;
+  object-fit: cover;
+  margin-bottom: 1rem;
+}
+
+.profile-header h2 {
+  font-size: 1.8rem;
+  color: #333;
+  margin: 0.5rem 0;
+}
+
+.profile-header p {
+  font-size: 1rem;
+  color: #555;
+  margin: 0.3rem 0;
+}
+
+.update-profile-button {
+  padding: 0.75rem 1.5rem;
+  background-color: #007bff;
+  color: #fff;
+  border: none;
+  border-radius: 4px;
+  font-size: 1rem;
+  cursor: pointer;
+  margin-top: 1rem;
+  transition: background-color 0.3s;
+}
+
+.update-profile-button:hover {
+  background-color: #0056b3;
+}
+
+.driver-section, .ride-history, .wallet-section, .earnings-section {
+  margin-bottom: 2rem;
+  padding: 1rem;
+  background-color: #fff;
+  border-radius: 6px;
+  border: 1px solid #ddd;
+}
+
+.driver-section h3, .ride-history h3, .wallet-section h3, .earnings-section h3 {
+  font-size: 1.4rem;
+  color: #333;
+  margin-bottom: 1rem;
+}
+
+.vehicle-info {
+  margin-top: 1rem;
+}
+
+.vehicle-info h4 {
+  font-size: 1.2rem;
+  color: #555;
+}
+
+.vehicle-info p {
+  font-size: 0.9rem;
+  color: #555;
+  margin: 0.3rem 0;
+}
+
+.vehicle-photo {
+  max-width: 200px;
+  border-radius: 4px;
+  margin-top: 0.5rem;
+}
+
+.wallet-section button {
+  padding: 0.75rem 1.5rem;
+  background-color: #007bff;
+  color: #fff;
+  border: none;
+  border-radius: 4px;
+  font-size: 1rem;
+  cursor: pointer;
+  margin: 0.5rem;
+  transition: background-color 0.3s;
+}
+
+.wallet-section button:hover {
+  background-color: #0056b3;
+}
+
+@media (max-width: 480px) {
+  .profile-wrapper {
+    margin: 1rem;
+    padding: 1rem;
+  }
+
+  .profile-header h2 {
+    font-size: 1.5rem;
+  }
+
+  .profile-picture {
+    width: 100px;
+    height: 100px;
+  }
+
+  .update-profile-button, .wallet-section button {
+    width: 100%;
+    margin: 0.5rem 0;
+  }
+}
+.wallet-buttons {
+  display: flex;
+  gap: 10px;
+  justify-content: center;
+}
+
+.wallet-buttons button {
+  padding: 10px 20px;
+  font-size: 1em;
+  background-color: #007bff;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: background-color 0.2s;
+}
+
+.wallet-buttons button:hover {
+  background-color: #0056b3;
+}  */
