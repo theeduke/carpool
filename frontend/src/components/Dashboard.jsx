@@ -272,7 +272,8 @@ const handleDismiss = async (notif) => {
                       >
                           <span className="icon">{notif.type === 'cancellation' ? '🚫' : '📩'}</span>
                           <div className="content">
-                              {/* <p>{notif.message} {notif.carpoolride_id && `(Ride ID: ${notif.carpoolride_id})`}</p> */}
+                              <p>{notif.message} </p>
+                              {/* {notif.carpoolride_id && `(Ride ID: ${notif.carpoolride_id})`}</p> */}
                               <small>{new Date(notif.time).toLocaleTimeString()}</small>
                               {/* <small>Notification ID: {notif.notification_id || 'Missing'}</small> */}
                           </div>
@@ -306,8 +307,8 @@ const handleDismiss = async (notif) => {
                   <h4>Ride from {ride.origin?.label} to {ride.destination?.label}</h4>
                   <p>Driver: {ride.driver?.name}</p>
                   <p>Departure: {new Date(ride.departure_time).toLocaleString()}</p>
-                  <p>Seats unoccupied: {ride.available_seats}</p>
-                  <p>Status: {ride.status}</p>
+                  {/* <p>Seats unoccupied: {ride.available_seats}</p> */}
+                  {/* <p>Status: {ride.status}</p> */}
                   {isInProgress && displayLocation && passengerRequest ? (
                     <div>
                       {/* <p>

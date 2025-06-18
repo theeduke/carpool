@@ -1033,7 +1033,7 @@ const handleCancelEdit = () => {
   <div className="driver-info">
     <p><span className="info-label">Phone:</span> {driverData.phone_number}</p>
     {/* <p><span className="info-label">Verified:</span> {driverData.is_verified ? "Yes" : "No"}</p> */}
-    <p><span className="info-label">Wallet Balance:</span> Ksh {(walletBalance || 0.00).toFixed(2)}</p>
+    {/* <p><span className="info-label">Wallet Balance:</span> Ksh {(walletBalance || 0.00).toFixed(2)}</p> */}
     {/* <p><span className="info-label">Rating:</span> {driverData.rating}</p> */}
     {/* <p><span className="info-label">Availability:</span> {availability ? "Available" : "Unavailable"}</p> */}
     {/* <p><span className="info-label">Current Location:</span> {location.latitude || "N/A"}, {location.longitude || "N/A"}</p> */}

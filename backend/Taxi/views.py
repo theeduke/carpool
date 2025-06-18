@@ -1783,7 +1783,8 @@ class CompleteRideView(APIView):
                 total_released += fare
                 
                 # Update driver stats with earnings
-                driver_stats.total_earnings += fare
+                # driver_stats.total_earnings += fare
+                driver_stats.total_earnings = Decimal(str(driver_stats.total_earnings)) + fare
                 
                 # Update passenger stats
                 passenger_stats, _ = ProfileStats.objects.get_or_create(user=req.passenger)

@@ -84,7 +84,7 @@ function UserProfile() {
                 <p>Capacity: {profile.vehicle.capacity} seats</p>
                 <p>Year: {profile.vehicle.year}</p>
                 <p>Color: {profile.vehicle.color}</p>
-                <p>Verified: {profile.vehicle.verified ? 'Yes' : 'No'}</p>
+                {/* <p>Verified: {profile.vehicle.verified ? 'Yes' : 'No'}</p> */}
                 {profile.vehicle.vehicle_photo && (
                   <img src={profile.vehicle.vehicle_photo} alt="Vehicle" className="vehicle-photo" />
                 )}

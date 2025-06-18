@@ -197,7 +197,8 @@ def send_verification_email(user):
         email = EmailMultiAlternatives(
             subject=subject,
             body=text_content,
-            from_email=settings.DEFAULT_FROM_EMAIL,
+            # from_email=settings.DEFAULT_FROM_EMAIL,
+            from_email=f"DukeRides <{settings.DEFAULT_FROM_EMAIL}>", 
             to=[user.email],
         )
         email.attach_alternative(html_content, "text/html")

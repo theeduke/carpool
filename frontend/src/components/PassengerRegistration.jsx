@@ -42,7 +42,7 @@ function PassengerRegistration() {
     try {
       // Assuming there's a registration service
       await authService.register(formData);
-      alert('Registration successful!'); // Placeholder
+      // alert('Registration successful!'); // Placeholder
       setFormData({
         first_name: '',
         last_name: '',

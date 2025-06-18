@@ -106,12 +106,16 @@ function Reports() {
   };
 
   const handleDownloadPDF = () => {
-    const doc = new jsPDF();
+    const doc = new jsPDF({
+      orientation: 'portrait', //or landscape
+      unit: 'mm',
+      format: 'a4', //options: 'a4', 'letter', 'a3', or [width, height] for custom size
+    });
     doc.html(document.querySelector('.report-content'), {
       callback: (doc) => doc.save(`${reportType}-${filterMonth || 'all'}-${filterYear || 'all'}.pdf`),
-      x: 10,
-      y: 10,
-      html2canvas: { scale: 0.5 },
+      x: 5,
+      y: 5,
+      html2canvas: { scale: 0.2 }, //adjust scale  for size vs. quality
     });
   };
 

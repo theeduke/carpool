@@ -120,7 +120,7 @@ function DriverRegister() {
     try {
       await authService.registerDriver(formDataToSend);
       toast.success("Driver Registration successful!");
-      alert('Registration successful! Check your email to verify.');
+      // alert('Registration successful! Check your email to verify.');
       navigate('/verify-email-prompt');
 
       setFormData({
